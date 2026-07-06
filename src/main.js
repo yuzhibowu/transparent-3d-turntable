@@ -30,6 +30,15 @@ app.innerHTML = `
         </div>
       </div>
       <button id="resetViewButton" class="resetViewButton" type="button" title="恢复初始视角" aria-label="恢复初始视角" disabled>↻</button>
+      <div class="languageControl stageLanguageControl">
+        <button id="languageMenuButton" class="languageMenuButton" type="button" aria-label="切换语言" title="切换语言" aria-expanded="false">⌄</button>
+        <span>language</span>
+        <div id="languageMenu" class="languageMenu" hidden>
+          <button type="button" data-lang="zh">中文</button>
+          <button type="button" data-lang="en">English</button>
+          <button type="button" data-lang="fr">Français</button>
+        </div>
+      </div>
       <nav class="socialDock" aria-label="社交链接">
         <div class="wechatContact">
           <button id="wechatButton" class="socialIconButton" type="button" aria-label="微信：Freefromboy" aria-expanded="false">
@@ -52,15 +61,6 @@ app.innerHTML = `
     <aside class="panel">
       <header class="panelHeader">
         <div class="panelHeaderTop">
-          <div class="languageControl">
-            <button id="languageMenuButton" class="languageMenuButton" type="button" aria-label="切换语言" title="切换语言" aria-expanded="false">⌄</button>
-            <span>language</span>
-            <div id="languageMenu" class="languageMenu" hidden>
-              <button type="button" data-lang="zh">中文</button>
-              <button type="button" data-lang="en">English</button>
-              <button type="button" data-lang="fr">Français</button>
-            </div>
-          </div>
           <div class="panelBrand" aria-label="饼饼SHOW"><span>饼</span><span>饼</span><span>S</span><span>H</span><span>O</span><span>W</span></div>
         </div>
         <div class="importStack">
