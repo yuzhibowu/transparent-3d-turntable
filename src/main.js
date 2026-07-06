@@ -4,9 +4,13 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { USDZLoader } from "three/examples/jsm/loaders/USDZLoader.js";
+import { FFmpeg } from "@ffmpeg/ffmpeg";
+import { fetchFile, toBlobURL } from "@ffmpeg/util";
+import JSZip from "jszip";
 
 const app = document.querySelector("#app");
-const exportApiBase = (import.meta.env.VITE_EXPORT_API_URL || "").replace(/\/$/, "");
+const ffmpegCoreBase = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm";
+let ffmpegCoreUrls = null;
 
 app.innerHTML = `
   <main class="shell">
@@ -418,6 +422,100 @@ async function renderFrames({ width, height, fps, duration }) {
   return frames;
 }
 
+function safeBaseName(value) {
+  return String(value).replace(/[^a-z0-9._-]+/gi, "_").replace(/^_+|_+$/g, "") || "turntable";
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function exportPngSequence(frames, baseName) {
+  const zip = new JSZip();
+  frames.forEach((frame, index) => {
+    zip.file(`${baseName}_${String(index + 1).padStart(5, "0")}.png`, frame.split(",")[1], { base64: true });
+  });
+  return zip.generateAsync(
+    { type: "blob", compression: "DEFLATE" },
+    ({ percent }) => setProgress(0.82 + (percent / 100) * 0.17),
+  );
+}
+
+async function loadBrowserFfmpeg() {
+  exportStatus.textContent = "首次使用，正在加载编码器（约 31 MB）";
+  if (!ffmpegCoreUrls) {
+    ffmpegCoreUrls = Promise.all([
+      toBlobURL(`${ffmpegCoreBase}/ffmpeg-core.js`, "text/javascript"),
+      toBlobURL(`${ffmpegCoreBase}/ffmpeg-core.wasm`, "application/wasm"),
+    ]);
+  }
+
+  const [coreURL, wasmURL] = await ffmpegCoreUrls;
+  const ffmpeg = new FFmpeg();
+  let latestLog = "";
+  ffmpeg.on("log", ({ message }) => {
+    latestLog = message;
+  });
+  ffmpeg.on("progress", ({ progress }) => {
+    if (Number.isFinite(progress)) setProgress(0.84 + Math.min(1, Math.max(0, progress)) * 0.15);
+  });
+  await ffmpeg.load({ coreURL, wasmURL });
+  return { ffmpeg, getLatestLog: () => latestLog };
+}
+
+async function exportAnimatedFile({ mode, frames, fps, baseName }) {
+  const { ffmpeg, getLatestLog } = await loadBrowserFfmpeg();
+  const frameNames = frames.map((_, index) => `frame_${String(index).padStart(5, "0")}.png`);
+  let outputName;
+  let mimeType;
+  let args;
+
+  if (mode === "mov") {
+    outputName = `${baseName}_prores4444.mov`;
+    mimeType = "video/quicktime";
+    args = [
+      "-framerate", String(fps), "-i", "frame_%05d.png",
+      "-c:v", "prores_ks", "-profile:v", "4", "-pix_fmt", "yuva444p10le", "-vendor", "apl0",
+      outputName,
+    ];
+  } else if (mode === "gif") {
+    outputName = `${baseName}.gif`;
+    mimeType = "image/gif";
+    args = [
+      "-framerate", String(fps), "-i", "frame_%05d.png",
+      "-filter_complex",
+      "[0:v]split[s0][s1];[s0]palettegen=reserve_transparent=on:stats_mode=single[p];[s1][p]paletteuse=alpha_threshold=128",
+      "-loop", "0", outputName,
+    ];
+  } else {
+    outputName = `${baseName}.png`;
+    mimeType = "image/png";
+    args = ["-framerate", String(fps), "-i", "frame_%05d.png", "-plays", "0", "-f", "apng", outputName];
+  }
+
+  try {
+    for (let index = 0; index < frames.length; index += 1) {
+      await ffmpeg.writeFile(frameNames[index], await fetchFile(frames[index]));
+      setProgress(0.72 + ((index + 1) / frames.length) * 0.1);
+      exportStatus.textContent = `正在准备编码 ${index + 1} / ${frames.length} 帧`;
+    }
+
+    exportStatus.textContent = "正在浏览器中编码，请保持页面开启";
+    const exitCode = await ffmpeg.exec(args);
+    if (exitCode !== 0) throw new Error(getLatestLog() || `编码器退出，错误码 ${exitCode}`);
+    const output = await ffmpeg.readFile(outputName);
+    return { blob: new Blob([output.buffer], { type: mimeType }), filename: outputName };
+  } finally {
+    await Promise.allSettled([...frameNames, outputName].map((name) => ffmpeg.deleteFile(name)));
+    ffmpeg.terminate();
+  }
+}
+
 async function exportTurntable() {
   if (!modelRoot || isExporting) return;
   isExporting = true;
@@ -434,36 +532,18 @@ async function exportTurntable() {
     const frames = await renderFrames({ width, height, fps, duration });
     exportStatus.textContent = "正在编码导出文件";
     setProgress(0.82);
+    const baseName = safeBaseName(sourceName);
+    let blob;
+    let filename;
 
-    const response = await fetch(`${exportApiBase}/api/export`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode, width, height, fps, frames, baseName: sourceName }),
-    });
-
-    if (!response.ok) {
-      const responseText = await response.text();
-      let message = responseText;
-      try {
-        message = JSON.parse(responseText).error;
-      } catch {
-        // Keep the plain-text server response when it is not JSON.
-      }
-      throw new Error(message || `导出失败（HTTP ${response.status}）。`);
+    if (mode === "png") {
+      blob = await exportPngSequence(frames, baseName);
+      filename = `${baseName}_png_sequence.zip`;
+    } else {
+      ({ blob, filename } = await exportAnimatedFile({ mode, frames, fps, baseName }));
     }
 
-    const blob = await response.blob();
-    const disposition = response.headers.get("Content-Disposition") || "";
-    const match = disposition.match(/filename="([^"]+)"/);
-    const fallbackExtension = mode === "png" ? "zip" : mode === "apng" ? "png" : mode;
-    const fallback = `${sourceName}.${fallbackExtension}`;
-    const filename = mode === "apng" ? `${sourceName}.png` : match?.[1] || fallback;
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, filename);
     setProgress(1);
     exportStatus.textContent = `${filename} 已生成`;
   } catch (error) {

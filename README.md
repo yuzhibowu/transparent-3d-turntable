@@ -15,9 +15,4 @@ The app is served at `http://localhost:5174` by default.
 
 ## Production architecture
 
-- Vercel hosts the Vite frontend.
-- A Docker web service hosts `server.js` and FFmpeg.
-- Set `VITE_EXPORT_API_URL` in Vercel to the Docker service origin, without a trailing slash.
-- Set `ALLOWED_ORIGINS` on the Docker service to the Vercel site origin.
-
-The included `Dockerfile` and `render.yaml` can be deployed directly on Render.
+The deployed Vite app exports files entirely in the browser. PNG sequences are packaged with JSZip; MOV, GIF, and animated PNG files are encoded with ffmpeg.wasm. No export backend is required.

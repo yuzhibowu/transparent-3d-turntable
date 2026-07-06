@@ -1,7 +1,0 @@
-node_modules
-dist
-.git
-.npm-cache
-.DS_Store
-*.log
-.env*
