@@ -349,6 +349,7 @@ canvas {
   display: flex;
   justify-content: flex-end;
   width: auto;
+  transform: translateY(-5px);
   color: #1d1d1f;
   font-size: clamp(17px, 1.4vw, 24px);
   font-weight: 850;
@@ -361,7 +362,7 @@ canvas {
   right: 0;
   left: 0;
   width: auto;
-  height: 6px;
+  height: 4.5px;
   background: #ffe600;
   content: "";
 }
