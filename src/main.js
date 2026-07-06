@@ -30,6 +30,23 @@ app.innerHTML = `
         </div>
       </div>
       <button id="resetViewButton" class="resetViewButton" type="button" title="恢复初始视角" aria-label="恢复初始视角" disabled>↻</button>
+      <nav class="socialDock" aria-label="社交链接">
+        <div class="wechatContact">
+          <button id="wechatButton" class="socialIconButton" type="button" aria-label="微信：Freefromboy" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 4C4.81 4 1 7.08 1 10.88c0 2.19 1.28 4.14 3.27 5.4L3.5 19l3.14-1.57c.91.25 1.87.38 2.86.38.29 0 .58-.01.86-.04a6.38 6.38 0 0 1-.36-2.1c0-3.72 3.35-6.75 7.5-6.75.08 0 .17 0 .25.01C16.7 6.06 13.47 4 9.5 4Zm-2.82 5.2a1.05 1.05 0 1 1 0-2.1 1.05 1.05 0 0 1 0 2.1Zm5.64 0a1.05 1.05 0 1 1 0-2.1 1.05 1.05 0 0 1 0 2.1Z"/><path d="M23 15.67c0-3.19-3.08-5.78-6.88-5.78s-6.87 2.59-6.87 5.78 3.08 5.78 6.87 5.78c.8 0 1.58-.12 2.3-.33L21 22.4l-.62-2.22C21.98 19.12 23 17.51 23 15.67Zm-9.17-1.36a.9.9 0 1 1 0-1.8.9.9 0 0 1 0 1.8Zm4.58 0a.9.9 0 1 1 0-1.8.9.9 0 0 1 0 1.8Z"/></svg>
+          </button>
+          <span id="wechatBubble" class="wechatBubble" role="status" hidden>Freefromboy</span>
+        </div>
+        <a class="socialIconLink youtubeIcon" href="https://www.youtube.com/@wqsyyzx" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.13C19.54 3.56 12 3.56 12 3.56s-7.54 0-9.4.51A3 3 0 0 0 .5 6.2 31.2 31.2 0 0 0 0 12a31.2 31.2 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.13c1.86.51 9.4.51 9.4.51s7.54 0 9.4-.51a3 3 0 0 0 2.1-2.13A31.2 31.2 0 0 0 24 12a31.2 31.2 0 0 0-.5-5.8ZM9.6 15.6V8.4l6.23 3.6-6.23 3.6Z"/></svg>
+        </a>
+        <a class="socialIconLink xiaohongshuIcon" href="https://xhslink.com/m/6haeQAMgARs" target="_blank" rel="noopener noreferrer" aria-label="小红书">
+          <img src="/xiaohongshu.svg" alt="" />
+        </a>
+        <a class="socialIconLink githubIcon" href="https://github.com/yuzhibowu/transparent-3d-turntable" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58v-2.23c-3.34.73-4.04-1.42-4.04-1.42-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.08 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.62-5.48 5.92.43.37.81 1.1.81 2.22v3.3c0 .32.22.7.82.58A12 12 0 0 0 12 .5Z"/></svg>
+        </a>
+      </nav>
     </section>
 
     <aside class="panel">
@@ -151,6 +168,8 @@ const fpsInput = document.querySelector("#fpsInput");
 const sizePresetButtons = document.querySelectorAll(".sizePreset");
 const fpsPresetButtons = document.querySelectorAll(".fpsPreset");
 const resetViewButton = document.querySelector("#resetViewButton");
+const wechatButton = document.querySelector("#wechatButton");
+const wechatBubble = document.querySelector("#wechatBubble");
 const previewToggle = document.querySelector("#previewToggle");
 const languageMenuButton = document.querySelector("#languageMenuButton");
 const languageMenu = document.querySelector("#languageMenu");
@@ -597,6 +616,18 @@ resetViewButton.addEventListener("click", () => {
   camera.updateProjectionMatrix();
   modelRoot.rotation.y = 0;
   controls.update();
+});
+
+wechatButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  const willOpen = wechatBubble.hidden;
+  wechatBubble.hidden = !willOpen;
+  wechatButton.setAttribute("aria-expanded", String(willOpen));
+});
+
+document.addEventListener("click", () => {
+  wechatBubble.hidden = true;
+  wechatButton.setAttribute("aria-expanded", "false");
 });
 
 previewToggle.addEventListener("click", () => {

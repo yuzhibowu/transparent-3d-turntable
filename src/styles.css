@@ -235,6 +235,83 @@ canvas {
   cursor: not-allowed;
 }
 
+.socialDock {
+  position: absolute;
+  z-index: 3;
+  right: 18px;
+  bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  height: 20px;
+}
+
+.socialIconLink,
+.socialIconButton {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #1d1d1f;
+  cursor: pointer;
+}
+
+.socialIconLink svg,
+.socialIconButton svg,
+.socialIconLink img {
+  display: block;
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.socialIconLink:focus-visible,
+.socialIconButton:focus-visible {
+  outline: 2px solid #1d1d1f;
+  outline-offset: 2px;
+}
+
+.wechatContact {
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+
+.wechatBubble {
+  position: absolute;
+  left: 50%;
+  bottom: 25px;
+  height: 15px;
+  padding: 0 3px;
+  transform: translateX(-50%);
+  background: #000000;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 15px;
+  white-space: nowrap;
+}
+
+.wechatBubble::after {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border: 3px solid transparent;
+  border-top-color: #000000;
+  transform: translateX(-50%);
+  content: "";
+}
+
+.wechatBubble[hidden] {
+  display: none;
+}
+
 .panel {
   display: grid;
   grid-template-rows: 165px minmax(0, 1fr);
@@ -703,6 +780,10 @@ label {
     left: 5px;
     width: 18px;
     height: 18px;
+  }
+
+  .socialDock {
+    right: 10px;
   }
 }
 
