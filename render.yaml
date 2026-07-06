@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: transparent-3d-turntable-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: ALLOWED_ORIGINS
+        value: https://transparent-3d-turntable.vercel.app
+      - key: MAX_CONCURRENT_EXPORTS
+        value: 1
+      - key: EXPORT_BODY_LIMIT
+        value: 1gb

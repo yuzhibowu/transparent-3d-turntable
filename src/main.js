@@ -6,6 +6,7 @@ import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { USDZLoader } from "three/examples/jsm/loaders/USDZLoader.js";
 
 const app = document.querySelector("#app");
+const exportApiBase = (import.meta.env.VITE_EXPORT_API_URL || "").replace(/\/$/, "");
 
 app.innerHTML = `
   <main class="shell">
@@ -434,15 +435,21 @@ async function exportTurntable() {
     exportStatus.textContent = "正在编码导出文件";
     setProgress(0.82);
 
-    const response = await fetch("/api/export", {
+    const response = await fetch(`${exportApiBase}/api/export`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode, width, height, fps, frames, baseName: sourceName }),
     });
 
     if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      throw new Error(payload.error || "导出失败。");
+      const responseText = await response.text();
+      let message = responseText;
+      try {
+        message = JSON.parse(responseText).error;
+      } catch {
+        // Keep the plain-text server response when it is not JSON.
+      }
+      throw new Error(message || `导出失败（HTTP ${response.status}）。`);
     }
 
     const blob = await response.blob();

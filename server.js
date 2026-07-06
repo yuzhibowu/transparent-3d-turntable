@@ -8,8 +8,51 @@ import JSZip from "jszip";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+const allowedOrigins = new Set(
+  (process.env.ALLOWED_ORIGINS || "https://transparent-3d-turntable.vercel.app")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
+const maxConcurrentExports = Math.max(1, Number(process.env.MAX_CONCURRENT_EXPORTS) || 1);
+let activeExports = 0;
 
-app.use(express.json({ limit: "2gb" }));
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && (allowedOrigins.has(origin) || origin.startsWith("http://localhost:"))) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  }
+  if (req.method === "OPTIONS") {
+    res.sendStatus(origin && !res.hasHeader("Access-Control-Allow-Origin") ? 403 : 204);
+    return;
+  }
+  next();
+});
+
+app.get("/api/health", (_, res) => {
+  res.json({ ok: true, ffmpeg: true, activeExports, maxConcurrentExports });
+});
+
+function reserveExportSlot(req, res, next) {
+  if (activeExports >= maxConcurrentExports) {
+    res.status(429).json({ error: "服务器正在处理另一个导出任务，请稍后重试。" });
+    return;
+  }
+
+  activeExports += 1;
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    activeExports = Math.max(0, activeExports - 1);
+  };
+  res.once("finish", release);
+  res.once("close", release);
+  next();
+}
 
 function runFfmpeg(args) {
   return new Promise((resolve, reject) => {
@@ -41,7 +84,11 @@ async function writeFrames(dir, frames) {
   );
 }
 
-app.post("/api/export", async (req, res) => {
+app.post(
+  "/api/export",
+  reserveExportSlot,
+  express.json({ limit: process.env.EXPORT_BODY_LIMIT || "1gb" }),
+  async (req, res) => {
   const { mode, fps, frames, baseName = "turntable" } = req.body;
 
   if (!Array.isArray(frames) || frames.length === 0) {
@@ -130,13 +177,14 @@ app.post("/api/export", async (req, res) => {
     await fs.rm(workDir, { recursive: true, force: true });
     res.status(500).json({ error: error.message });
   }
-});
+  },
+);
 
 app.use(express.static(path.join(__dirname, "dist")));
 app.get(/.*/, (_, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
 
 const port = Number(process.env.PORT) || 5174;
-const server = app.listen(port, () => {
+const server = app.listen(port, "0.0.0.0", () => {
   console.log(`Transparent 3D turntable ready at http://localhost:${port}`);
 });
 
