@@ -242,9 +242,8 @@ function setProgress(value) {
 }
 
 function resizePreview() {
-  const rect = dropZone.getBoundingClientRect();
-  const width = Math.max(320, Math.floor(rect.width));
-  const height = Math.max(240, Math.floor(rect.height));
+  const width = Math.max(320, Math.floor(dropZone.clientWidth));
+  const height = Math.max(240, Math.floor(dropZone.clientHeight));
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(width, height, false);
   camera.aspect = width / height;
@@ -399,8 +398,7 @@ function canvasToPng() {
 }
 
 async function renderFrames({ width, height, fps, duration }) {
-  const previewRect = dropZone.getBoundingClientRect();
-  const previewSize = { width: previewRect.width, height: previewRect.height };
+  const previewSize = { width: dropZone.clientWidth, height: dropZone.clientHeight };
   const originalRotation = modelRoot.rotation.y;
   const originalCameraPosition = camera.position.clone();
   const originalCameraTarget = controls.target.clone();
