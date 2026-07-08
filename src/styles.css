@@ -161,7 +161,7 @@ h1 {
 }
 
 .viewportWrap {
-  --preview-background: #f2f2f2;
+  --checker-background: #f2f2f2;
   position: relative;
   width: var(--preview-width);
   aspect-ratio: 4 / 3;
@@ -171,7 +171,7 @@ h1 {
   min-height: 0;
   align-self: center;
   justify-self: center;
-  background-color: var(--preview-background);
+  background-color: var(--checker-background);
   background-image:
     linear-gradient(45deg, #d7dde2 25%, transparent 25%),
     linear-gradient(-45deg, #d7dde2 25%, transparent 25%),
@@ -434,13 +434,11 @@ canvas {
   accent-color: #1d1d1f;
 }
 
-.lightingColor,
 .toneMappingControl {
   grid-template-columns: minmax(0, 1fr) 92px;
   align-items: center;
 }
 
-.lightingColor input,
 .toneMappingControl select {
   width: 92px;
   height: 34px;
@@ -453,21 +451,6 @@ canvas {
 
 .toneMappingControl select {
   padding: 0 8px;
-}
-
-.transparentBackground {
-  display: flex;
-  grid-template-columns: none;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.transparentBackground input {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: #1d1d1f;
 }
 
 .compositionSection {
