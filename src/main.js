@@ -210,6 +210,7 @@ const centerModelButton = document.querySelector("#centerModelButton");
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(35, 1, 0.01, 1000);
 camera.position.set(0, 1.2, 4);
+scene.background = null;
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -218,6 +219,8 @@ const renderer = new THREE.WebGLRenderer({
   preserveDrawingBuffer: true,
 });
 renderer.setClearColor(0x000000, 0);
+renderer.setClearAlpha(0);
+renderer.autoClear = false;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
@@ -304,9 +307,15 @@ function applyRenderSettings() {
   hemisphereLight.intensity = renderSettings.environmentIntensity * 0.9;
   keyLight.intensity = renderSettings.keyLightIntensity;
   fillLight.intensity = renderSettings.fillLightIntensity;
-  renderer.setClearColor(0x000000, 0);
+  lockTransparentBackground();
   updateMaterialEnvironment();
   applyModelOffset();
+}
+
+function lockTransparentBackground() {
+  scene.background = null;
+  renderer.setClearColor(0x000000, 0);
+  renderer.setClearAlpha(0);
 }
 
 function syncLightingControls() {
@@ -348,6 +357,8 @@ function resizePreview() {
 }
 
 function render() {
+  lockTransparentBackground();
+  renderer.clear(true, true, true);
   renderer.render(scene, camera);
 }
 
