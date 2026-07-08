@@ -348,9 +348,9 @@ canvas {
 
 .lightingPanelButton {
   position: absolute;
-  z-index: 2;
-  top: 16px;
-  left: 16px;
+  z-index: 4;
+  bottom: 38px;
+  left: 5px;
   min-width: 112px;
   height: 26px;
   padding: 0 10px;
@@ -917,8 +917,8 @@ label {
   }
 
   .lightingPanelButton {
-    top: 6px;
-    left: 10px;
+    bottom: 34px;
+    left: 5px;
     height: 22px;
   }
 
