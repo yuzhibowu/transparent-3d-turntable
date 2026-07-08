@@ -10,6 +10,7 @@ import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import JSZip from "jszip";
 
 const app = document.querySelector("#app");
+const exportApiBase = (import.meta.env.VITE_EXPORT_API_URL || "").replace(/\/$/, "");
 const ffmpegCoreBase = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm";
 let ffmpegCoreUrls = null;
 
@@ -563,6 +564,36 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function filenameFromResponse(response, fallback) {
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  return match?.[1] || fallback;
+}
+
+async function exportMovWithServer({ frames, fps, baseName, width, height }) {
+  exportStatus.textContent = "正在上传透明帧到 MOV 编码服务";
+  const response = await fetch(`${exportApiBase}/api/export`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: "mov", width, height, fps, frames, baseName }),
+  });
+
+  if (!response.ok) {
+    const responseText = await response.text();
+    let message = responseText;
+    try {
+      message = JSON.parse(responseText).error;
+    } catch {
+      // Keep the plain-text server response when it is not JSON.
+    }
+    throw new Error(message || `MOV 编码服务不可用（HTTP ${response.status}）。`);
+  }
+
+  const blob = await response.blob();
+  const filename = filenameFromResponse(response, `${baseName}_prores4444.mov`);
+  return { blob, filename };
+}
+
 async function exportPngSequence(frames, baseName) {
   const zip = new JSZip();
   frames.forEach((frame, index) => {
@@ -666,7 +697,9 @@ async function exportTurntable() {
     let blob;
     let filename;
 
-    if (mode === "png") {
+    if (mode === "mov") {
+      ({ blob, filename } = await exportMovWithServer({ frames, fps, baseName, width, height }));
+    } else if (mode === "png") {
       blob = await exportPngSequence(frames, baseName);
       filename = `${baseName}_png_sequence.zip`;
     } else {
