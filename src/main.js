@@ -638,6 +638,7 @@ async function exportAnimatedFile({ mode, frames, fps, baseName }) {
     mimeType = "video/quicktime";
     args = [
       "-framerate", String(fps), "-i", "frame_%05d.png",
+      "-vf", "format=rgba",
       "-c:v", "prores_ks", "-profile:v", "4", "-pix_fmt", "yuva444p10le", "-vendor", "apl0",
       outputName,
     ];
