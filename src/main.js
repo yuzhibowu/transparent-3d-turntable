@@ -155,7 +155,7 @@ app.innerHTML = `
       <section id="lightingPanel" class="lightingPanel" aria-labelledby="lightingPanelTitle" hidden>
         <div class="lightingPanelHeader">
           <h2 id="lightingPanelTitle" data-i18n="lightingPanel">灯光与画面</h2>
-          <button id="lightingPanelClose" type="button" aria-label="关闭灯光与画面面板">×</button>
+          <button id="lightingPanelClose" type="button" aria-label="返回参数面板" title="返回参数面板">◀</button>
         </div>
         <div class="lightingControls">
           <label class="lightingRange"><span data-i18n="exposure">曝光</span><output data-setting-output="exposure">1.15</output><input data-render-setting="exposure" type="range" min="0.25" max="2.5" step="0.05" value="1.15" /></label>
