@@ -4,6 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { USDZLoader } from "three/examples/jsm/loaders/USDZLoader.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import JSZip from "jszip";
@@ -60,6 +61,7 @@ app.innerHTML = `
 
     <aside class="panel">
       <header class="panelHeader">
+        <button id="lightingPanelButton" class="lightingPanelButton" type="button" aria-controls="lightingPanel" aria-expanded="false" data-i18n="lightingPanel">灯光与画面</button>
         <div class="panelHeaderTop">
           <div class="panelBrand" aria-label="饼饼SHOW"><span>饼</span><span>饼</span><span>S</span><span>H</span><span>O</span><span>W</span></div>
         </div>
@@ -150,6 +152,23 @@ app.innerHTML = `
         </div>
       </div>
       </div>
+      <section id="lightingPanel" class="lightingPanel" aria-labelledby="lightingPanelTitle" hidden>
+        <div class="lightingPanelHeader">
+          <h2 id="lightingPanelTitle" data-i18n="lightingPanel">灯光与画面</h2>
+          <button id="lightingPanelClose" type="button" aria-label="关闭灯光与画面面板">×</button>
+        </div>
+        <div class="lightingControls">
+          <label class="lightingRange"><span data-i18n="exposure">曝光</span><output data-setting-output="exposure">1.15</output><input data-render-setting="exposure" type="range" min="0.25" max="2.5" step="0.05" value="1.15" /></label>
+          <label class="lightingRange"><span data-i18n="environmentIntensity">环境光强度</span><output data-setting-output="environmentIntensity">1.35</output><input data-render-setting="environmentIntensity" type="range" min="0" max="3" step="0.05" value="1.35" /></label>
+          <label class="lightingRange"><span data-i18n="keyLightIntensity">主光强度</span><output data-setting-output="keyLightIntensity">3.20</output><input data-render-setting="keyLightIntensity" type="range" min="0" max="8" step="0.1" value="3.2" /></label>
+          <label class="lightingRange"><span data-i18n="fillLightIntensity">补光强度</span><output data-setting-output="fillLightIntensity">1.80</output><input data-render-setting="fillLightIntensity" type="range" min="0" max="6" step="0.1" value="1.8" /></label>
+          <label class="lightingRange"><span data-i18n="shadowIntensity">阴影强度</span><output data-setting-output="shadowIntensity">0.35</output><input data-render-setting="shadowIntensity" type="range" min="0" max="1" step="0.05" value="0.35" /></label>
+          <label class="lightingColor"><span data-i18n="backgroundColor">背景颜色</span><input id="backgroundColorInput" data-render-setting="backgroundColor" type="color" value="#f2f2f2" /></label>
+          <label class="transparentBackground"><input id="transparentBackgroundInput" type="checkbox" checked /><span data-i18n="transparentBackground">透明背景</span></label>
+          <label class="toneMappingControl"><span data-i18n="toneMapping">色调映射</span><select id="toneMappingSelect"><option value="aces">ACES</option><option value="linear">Linear</option></select></label>
+        </div>
+        <button id="resetLightingButton" class="resetLightingButton" type="button" data-i18n="resetLighting">恢复影棚默认值</button>
+      </section>
     </aside>
   </main>
 `;
@@ -176,6 +195,13 @@ const languageMenu = document.querySelector("#languageMenu");
 const exportButton = document.querySelector("#exportButton");
 const exportStatus = document.querySelector("#exportStatus");
 const progressBar = document.querySelector("#progressBar");
+const lightingPanelButton = document.querySelector("#lightingPanelButton");
+const lightingPanel = document.querySelector("#lightingPanel");
+const lightingPanelClose = document.querySelector("#lightingPanelClose");
+const lightingSettingInputs = document.querySelectorAll("[data-render-setting]");
+const transparentBackgroundInput = document.querySelector("#transparentBackgroundInput");
+const toneMappingSelect = document.querySelector("#toneMappingSelect");
+const resetLightingButton = document.querySelector("#resetLightingButton");
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(35, 1, 0.01, 1000);
@@ -189,8 +215,8 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setClearColor(0x000000, 0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -198,11 +224,34 @@ controls.autoRotate = false;
 
 const keyLight = new THREE.DirectionalLight(0xffffff, 3.2);
 keyLight.position.set(3, 4, 4);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.bias = -0.0003;
 const fillLight = new THREE.DirectionalLight(0x9fb8ff, 1.6);
 fillLight.position.set(-4, 2, 3);
 const rimLight = new THREE.DirectionalLight(0xfff2dc, 1.2);
 rimLight.position.set(0, 3, -4);
-scene.add(new THREE.HemisphereLight(0xffffff, 0x667085, 1.4), keyLight, fillLight, rimLight);
+const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x667085, 1.4);
+scene.add(hemisphereLight, keyLight, fillLight, rimLight);
+
+const environmentGenerator = new THREE.PMREMGenerator(renderer);
+const environmentScene = new RoomEnvironment();
+const studioEnvironment = environmentGenerator.fromScene(environmentScene, 0.04).texture;
+environmentScene.dispose();
+environmentGenerator.dispose();
+scene.environment = studioEnvironment;
+
+const defaultRenderSettings = Object.freeze({
+  exposure: 1.15,
+  environmentIntensity: 1.35,
+  keyLightIntensity: 3.2,
+  fillLightIntensity: 1.8,
+  shadowIntensity: 0.35,
+  backgroundColor: "#f2f2f2",
+  transparentBackground: true,
+  toneMapping: "aces",
+});
+const renderSettings = { ...defaultRenderSettings };
 
 let modelRoot = null;
 let modelFrame = null;
@@ -213,13 +262,63 @@ let isExporting = false;
 let isPreviewPlaying = true;
 
 const translations = {
-  zh: { importModel: "导入模型", rotation: "旋转", clockwise: "顺时针", counterclockwise: "逆时针", duration: "整圈时长", seconds: "秒", speed: "旋转速度", degreesPerSecond: "度/秒", exportMode: "输出格式", pngSequence: "PNG 序列", pngAnimation: "PNG 动图", outputSize: "输出尺寸", width: "宽度", height: "高度", renderFps: "输出帧率", exportAnimation: "导出动画" },
-  en: { importModel: "Import Model", rotation: "Rotation", clockwise: "Clockwise", counterclockwise: "Counterclockwise", duration: "Full Turn", seconds: "sec", speed: "Rotation Speed", degreesPerSecond: "deg/s", exportMode: "Output Format", pngSequence: "PNG Sequence", pngAnimation: "Animated PNG", outputSize: "Output Size", width: "Width", height: "Height", renderFps: "Output Frame Rate", exportAnimation: "Export Animation" },
-  fr: { importModel: "Importer", rotation: "Rotation", clockwise: "Horaire", counterclockwise: "Antihoraire", duration: "Tour complet", seconds: "s", speed: "Vitesse", degreesPerSecond: "deg/s", exportMode: "Format de sortie", pngSequence: "Séquence PNG", pngAnimation: "PNG animé", outputSize: "Dimensions", width: "Largeur", height: "Hauteur", renderFps: "Fréquence de sortie", exportAnimation: "Exporter l’animation" },
+  zh: { importModel: "导入模型", rotation: "旋转", clockwise: "顺时针", counterclockwise: "逆时针", duration: "整圈时长", seconds: "秒", speed: "旋转速度", degreesPerSecond: "度/秒", exportMode: "输出格式", pngSequence: "PNG 序列", pngAnimation: "PNG 动图", outputSize: "输出尺寸", width: "宽度", height: "高度", renderFps: "输出帧率", exportAnimation: "导出动画", lightingPanel: "灯光与画面", exposure: "曝光", environmentIntensity: "环境光强度", keyLightIntensity: "主光强度", fillLightIntensity: "补光强度", shadowIntensity: "阴影强度", backgroundColor: "背景颜色", transparentBackground: "透明背景", toneMapping: "色调映射", resetLighting: "恢复影棚默认值" },
+  en: { importModel: "Import Model", rotation: "Rotation", clockwise: "Clockwise", counterclockwise: "Counterclockwise", duration: "Full Turn", seconds: "sec", speed: "Rotation Speed", degreesPerSecond: "deg/s", exportMode: "Output Format", pngSequence: "PNG Sequence", pngAnimation: "Animated PNG", outputSize: "Output Size", width: "Width", height: "Height", renderFps: "Output Frame Rate", exportAnimation: "Export Animation", lightingPanel: "Lighting & Image", exposure: "Exposure", environmentIntensity: "Environment", keyLightIntensity: "Key Light", fillLightIntensity: "Fill Light", shadowIntensity: "Shadows", backgroundColor: "Background", transparentBackground: "Transparent Background", toneMapping: "Tone Mapping", resetLighting: "Reset Studio Lighting" },
+  fr: { importModel: "Importer", rotation: "Rotation", clockwise: "Horaire", counterclockwise: "Antihoraire", duration: "Tour complet", seconds: "s", speed: "Vitesse", degreesPerSecond: "deg/s", exportMode: "Format de sortie", pngSequence: "Séquence PNG", pngAnimation: "PNG animé", outputSize: "Dimensions", width: "Largeur", height: "Hauteur", renderFps: "Fréquence de sortie", exportAnimation: "Exporter l’animation", lightingPanel: "Lumière & Image", exposure: "Exposition", environmentIntensity: "Environnement", keyLightIntensity: "Lumière principale", fillLightIntensity: "Lumière d’appoint", shadowIntensity: "Ombres", backgroundColor: "Arrière-plan", transparentBackground: "Fond transparent", toneMapping: "Mappage tonal", resetLighting: "Réinitialiser le studio" },
   ja: { importModel: "モデル読込", rotation: "回転", clockwise: "時計回り", counterclockwise: "反時計回り", duration: "一周時間", seconds: "秒", speed: "回転速度", degreesPerSecond: "度/秒", exportMode: "出力形式", pngSequence: "PNG 連番", pngAnimation: "アニメ PNG", outputSize: "出力サイズ", width: "幅", height: "高さ", renderFps: "出力フレームレート", exportAnimation: "アニメを書き出す" },
   de: { importModel: "Modell laden", rotation: "Drehung", clockwise: "Im Uhrzeigersinn", counterclockwise: "Gegen Uhrzeigersinn", duration: "Volle Runde", seconds: "s", speed: "Drehgeschwindigkeit", degreesPerSecond: "Grad/s", exportMode: "Ausgabeformat", pngSequence: "PNG-Sequenz", pngAnimation: "Animiertes PNG", outputSize: "Ausgabegröße", width: "Breite", height: "Höhe", renderFps: "Ausgabebildrate", exportAnimation: "Animation exportieren" },
   ko: { importModel: "모델 가져오기", rotation: "회전", clockwise: "시계 방향", counterclockwise: "반시계 방향", duration: "한 바퀴 시간", seconds: "초", speed: "회전 속도", degreesPerSecond: "도/초", exportMode: "출력 형식", pngSequence: "PNG 시퀀스", pngAnimation: "애니메이션 PNG", outputSize: "출력 크기", width: "너비", height: "높이", renderFps: "출력 프레임 속도", exportAnimation: "애니메이션 내보내기" },
 };
+
+function updateMaterialEnvironment(object = modelRoot) {
+  if (!object) return;
+  object.traverse((child) => {
+    if (!child.isMesh || !child.material) return;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    materials.forEach((material) => {
+      if ("envMapIntensity" in material) material.envMapIntensity = renderSettings.environmentIntensity;
+      material.needsUpdate = true;
+    });
+  });
+}
+
+function applyRenderSettings() {
+  renderer.toneMapping = renderSettings.toneMapping === "linear" ? THREE.LinearToneMapping : THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = renderSettings.exposure;
+  scene.environmentIntensity = renderSettings.environmentIntensity;
+  hemisphereLight.intensity = renderSettings.environmentIntensity * 0.9;
+  keyLight.intensity = renderSettings.keyLightIntensity;
+  fillLight.intensity = renderSettings.fillLightIntensity;
+  keyLight.shadow.intensity = renderSettings.shadowIntensity;
+  renderer.setClearColor(renderSettings.backgroundColor, renderSettings.transparentBackground ? 0 : 1);
+  dropZone.style.setProperty("--preview-background", renderSettings.backgroundColor);
+  updateMaterialEnvironment();
+}
+
+function syncLightingControls() {
+  lightingSettingInputs.forEach((input) => {
+    input.value = renderSettings[input.dataset.renderSetting];
+    const output = document.querySelector(`[data-setting-output="${input.dataset.renderSetting}"]`);
+    if (output) output.value = Number(input.value).toFixed(2);
+  });
+  transparentBackgroundInput.checked = renderSettings.transparentBackground;
+  toneMappingSelect.value = renderSettings.toneMapping;
+}
+
+function configureShadowCamera() {
+  if (!modelFrame) return;
+  const extent = Math.max(modelFrame.height, modelFrame.diameter, 0.01);
+  const shadowCamera = keyLight.shadow.camera;
+  shadowCamera.left = -extent;
+  shadowCamera.right = extent;
+  shadowCamera.top = extent;
+  shadowCamera.bottom = -extent;
+  shadowCamera.near = Math.max(extent * 0.01, 0.001);
+  shadowCamera.far = extent * 12;
+  keyLight.position.set(extent * 3, extent * 4, extent * 4);
+  keyLight.shadow.bias = -0.0002 * extent;
+  shadowCamera.updateProjectionMatrix();
+}
 
 function setLanguage(language) {
   const dictionary = translations[language] || translations.zh;
@@ -340,6 +439,7 @@ function normalizeMaterials(object) {
       const materials = Array.isArray(child.material) ? child.material : [child.material];
       materials.forEach((material) => {
         material.side = THREE.DoubleSide;
+        if ("envMapIntensity" in material) material.envMapIntensity = renderSettings.environmentIntensity;
         material.needsUpdate = true;
       });
     }
@@ -369,6 +469,7 @@ async function loadModel(file) {
     normalizeMaterials(modelRoot);
     scene.add(modelRoot);
     modelFrame = measureObjectForTurntable(modelRoot, loaded);
+    configureShadowCamera();
     fitCameraToFrame();
     initialView = {
       position: camera.position.clone(),
@@ -409,6 +510,7 @@ async function renderFrames({ width, height, fps, duration }) {
 
   renderer.setPixelRatio(1);
   renderer.setSize(width, height, false);
+  applyRenderSettings();
   camera.aspect = width / height;
   camera.position.copy(originalCameraPosition);
   controls.target.copy(originalCameraTarget);
@@ -572,6 +674,43 @@ async function exportTurntable() {
   }
 }
 
+function setLightingPanelOpen(open) {
+  lightingPanel.hidden = !open;
+  lightingPanelButton.setAttribute("aria-expanded", String(open));
+}
+
+lightingPanelButton.addEventListener("click", () => {
+  setLightingPanelOpen(lightingPanel.hidden);
+});
+
+lightingPanelClose.addEventListener("click", () => setLightingPanelOpen(false));
+
+lightingSettingInputs.forEach((input) => {
+  input.addEventListener("input", () => {
+    const key = input.dataset.renderSetting;
+    renderSettings[key] = input.type === "color" ? input.value : Number(input.value);
+    const output = document.querySelector(`[data-setting-output="${key}"]`);
+    if (output) output.value = Number(input.value).toFixed(2);
+    applyRenderSettings();
+  });
+});
+
+transparentBackgroundInput.addEventListener("change", () => {
+  renderSettings.transparentBackground = transparentBackgroundInput.checked;
+  applyRenderSettings();
+});
+
+toneMappingSelect.addEventListener("change", () => {
+  renderSettings.toneMapping = toneMappingSelect.value;
+  applyRenderSettings();
+});
+
+resetLightingButton.addEventListener("click", () => {
+  Object.assign(renderSettings, defaultRenderSettings);
+  syncLightingControls();
+  applyRenderSettings();
+});
+
 durationInput.addEventListener("input", syncFromDuration);
 speedInput.addEventListener("input", syncFromSpeed);
 speedRange.addEventListener("input", () => {
@@ -694,5 +833,7 @@ exportButton.addEventListener("click", exportTurntable);
 window.addEventListener("resize", resizePreview);
 
 syncFromDuration();
+syncLightingControls();
+applyRenderSettings();
 resizePreview();
 requestAnimationFrame(frame);

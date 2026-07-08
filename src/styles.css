@@ -161,6 +161,7 @@ h1 {
 }
 
 .viewportWrap {
+  --preview-background: #f2f2f2;
   position: relative;
   width: var(--preview-width);
   aspect-ratio: 4 / 3;
@@ -170,7 +171,7 @@ h1 {
   min-height: 0;
   align-self: center;
   justify-self: center;
-  background-color: #ffffff;
+  background-color: var(--preview-background);
   background-image:
     linear-gradient(45deg, #d7dde2 25%, transparent 25%),
     linear-gradient(-45deg, #d7dde2 25%, transparent 25%),
@@ -331,6 +332,7 @@ canvas {
   display: grid;
   grid-template-rows: 165px minmax(0, 1fr);
   min-height: 0;
+  position: relative;
   overflow: hidden;
 }
 
@@ -342,6 +344,142 @@ canvas {
   gap: 0;
   padding: 16px;
   border-bottom: 0;
+}
+
+.lightingPanelButton {
+  position: absolute;
+  z-index: 2;
+  top: 16px;
+  left: 16px;
+  min-width: 112px;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 0;
+  background: #1d1d1f;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.lightingPanelButton:hover,
+.lightingPanelButton[aria-expanded="true"] {
+  background: #000000;
+}
+
+.lightingPanel {
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  padding: 16px;
+  background: #ffffff;
+  overflow-y: auto;
+}
+
+.lightingPanel[hidden] {
+  display: none;
+}
+
+.lightingPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 30px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #d2d2d7;
+}
+
+.lightingPanelHeader h2 {
+  font-size: 16px;
+}
+
+.lightingPanelHeader button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #1d1d1f;
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lightingControls {
+  display: grid;
+  gap: 16px;
+  padding: 18px 0;
+}
+
+.lightingRange {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.lightingRange output {
+  min-width: 34px;
+  color: #6e6e73;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.lightingRange input[type="range"] {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin: 0;
+  accent-color: #1d1d1f;
+}
+
+.lightingColor,
+.toneMappingControl {
+  grid-template-columns: minmax(0, 1fr) 92px;
+  align-items: center;
+}
+
+.lightingColor input,
+.toneMappingControl select {
+  width: 92px;
+  height: 34px;
+  padding: 3px;
+  border: 1px solid #d2d2d7;
+  border-radius: 0;
+  background: #ffffff;
+  color: #1d1d1f;
+}
+
+.toneMappingControl select {
+  padding: 0 8px;
+}
+
+.transparentBackground {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.transparentBackground input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #1d1d1f;
+}
+
+.resetLightingButton {
+  width: 100%;
+  min-height: 40px;
+  border: 0;
+  border-radius: 0;
+  background: #1d1d1f;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 720;
+  cursor: pointer;
 }
 
 .panelBrand {
@@ -762,6 +900,21 @@ label {
 
   .panelHeader {
     padding: 6px 10px;
+  }
+
+  .lightingPanelButton {
+    top: 6px;
+    left: 10px;
+    height: 22px;
+  }
+
+  .lightingPanel {
+    padding: 10px;
+  }
+
+  .lightingControls {
+    gap: 9px;
+    padding: 10px 0;
   }
 
   .panelBrand {
