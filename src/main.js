@@ -218,10 +218,9 @@ const renderer = new THREE.WebGLRenderer({
   preserveDrawingBuffer: true,
 });
 renderer.setClearColor(0x000000, 0);
-renderer.setClearAlpha(0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -229,9 +228,6 @@ controls.autoRotate = false;
 
 const keyLight = new THREE.DirectionalLight(0xffffff, 3.2);
 keyLight.position.set(3, 4, 4);
-keyLight.castShadow = true;
-keyLight.shadow.mapSize.set(2048, 2048);
-keyLight.shadow.bias = -0.0003;
 const fillLight = new THREE.DirectionalLight(0x9fb8ff, 1.6);
 fillLight.position.set(-4, 2, 3);
 const rimLight = new THREE.DirectionalLight(0xfff2dc, 1.2);
@@ -308,9 +304,7 @@ function applyRenderSettings() {
   hemisphereLight.intensity = renderSettings.environmentIntensity * 0.9;
   keyLight.intensity = renderSettings.keyLightIntensity;
   fillLight.intensity = renderSettings.fillLightIntensity;
-  keyLight.shadow.intensity = renderSettings.shadowIntensity;
   renderer.setClearColor(0x000000, 0);
-  renderer.setClearAlpha(0);
   updateMaterialEnvironment();
   applyModelOffset();
 }
@@ -322,21 +316,6 @@ function syncLightingControls() {
     if (output) output.value = formatSettingValue(input.dataset.renderSetting, input.value);
   });
   toneMappingSelect.value = renderSettings.toneMapping;
-}
-
-function configureShadowCamera() {
-  if (!modelFrame) return;
-  const extent = Math.max(modelFrame.height, modelFrame.diameter, 0.01);
-  const shadowCamera = keyLight.shadow.camera;
-  shadowCamera.left = -extent;
-  shadowCamera.right = extent;
-  shadowCamera.top = extent;
-  shadowCamera.bottom = -extent;
-  shadowCamera.near = Math.max(extent * 0.01, 0.001);
-  shadowCamera.far = extent * 12;
-  keyLight.position.set(extent * 3, extent * 4, extent * 4);
-  keyLight.shadow.bias = -0.0002 * extent;
-  shadowCamera.updateProjectionMatrix();
 }
 
 function setLanguage(language) {
@@ -489,7 +468,6 @@ async function loadModel(file) {
     normalizeMaterials(modelRoot);
     scene.add(modelRoot);
     modelFrame = measureObjectForTurntable(modelRoot, loaded);
-    configureShadowCamera();
     fitCameraToFrame();
     applyModelOffset();
     initialView = {
@@ -531,7 +509,6 @@ async function renderFrames({ width, height, fps, duration }) {
 
   renderer.setPixelRatio(1);
   renderer.setSize(width, height, false);
-  applyRenderSettings();
   camera.aspect = width / height;
   camera.position.copy(originalCameraPosition);
   controls.target.copy(originalCameraTarget);
@@ -542,7 +519,6 @@ async function renderFrames({ width, height, fps, duration }) {
   for (let index = 0; index < frameCount; index += 1) {
     modelRoot.rotation.y = originalRotation + direction * (index / frameCount) * Math.PI * 2;
     controls.update();
-    applyModelOffset();
     render();
     frames.push(await canvasToPng());
     setProgress((index + 1) / frameCount * 0.72);
@@ -560,24 +536,7 @@ async function renderFrames({ width, height, fps, duration }) {
   camera.far = originalFar;
   camera.updateProjectionMatrix();
   controls.update();
-  applyModelOffset();
-  applyRenderSettings();
   return frames;
-}
-
-async function frameHasTransparency(dataUrl) {
-  const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
-  const sampleCanvas = document.createElement("canvas");
-  sampleCanvas.width = 16;
-  sampleCanvas.height = 16;
-  const context = sampleCanvas.getContext("2d", { willReadFrequently: true });
-  context.drawImage(bitmap, 0, 0, 16, 16);
-  bitmap.close();
-  const pixels = context.getImageData(0, 0, 16, 16).data;
-  for (let index = 3; index < pixels.length; index += 4) {
-    if (pixels[index] < 255) return true;
-  }
-  return false;
 }
 
 function safeBaseName(value) {
@@ -616,21 +575,18 @@ async function loadBrowserFfmpeg() {
   const [coreURL, wasmURL] = await ffmpegCoreUrls;
   const ffmpeg = new FFmpeg();
   let latestLog = "";
-  const logs = [];
   ffmpeg.on("log", ({ message }) => {
     latestLog = message;
-    logs.push(message);
-    console.info(`[ffmpeg] ${message}`);
   });
   ffmpeg.on("progress", ({ progress }) => {
     if (Number.isFinite(progress)) setProgress(0.84 + Math.min(1, Math.max(0, progress)) * 0.15);
   });
   await ffmpeg.load({ coreURL, wasmURL });
-  return { ffmpeg, getLatestLog: () => latestLog, getLogs: () => logs.join("\n") };
+  return { ffmpeg, getLatestLog: () => latestLog };
 }
 
 async function exportAnimatedFile({ mode, frames, fps, baseName }) {
-  const { ffmpeg, getLatestLog, getLogs } = await loadBrowserFfmpeg();
+  const { ffmpeg, getLatestLog } = await loadBrowserFfmpeg();
   const frameNames = frames.map((_, index) => `frame_${String(index).padStart(5, "0")}.png`);
   let outputName;
   let mimeType;
@@ -667,13 +623,8 @@ async function exportAnimatedFile({ mode, frames, fps, baseName }) {
     }
 
     exportStatus.textContent = "正在浏览器中编码，请保持页面开启";
-    console.info("[ffmpeg args]", args.join(" "));
     const exitCode = await ffmpeg.exec(args);
-    console.info("[ffmpeg full log]\n", getLogs());
     if (exitCode !== 0) throw new Error(getLatestLog() || `编码器退出，错误码 ${exitCode}`);
-    if (mode === "mov" && !/Video: prores \(ap4h[\s\S]*yuva444p10le/.test(getLogs())) {
-      throw new Error("MOV 编码结果未通过 ProRes 4444 Alpha 校验。");
-    }
     const output = await ffmpeg.readFile(outputName);
     return { blob: new Blob([output.buffer], { type: mimeType }), filename: outputName };
   } finally {
@@ -696,9 +647,6 @@ async function exportTurntable() {
 
   try {
     const frames = await renderFrames({ width, height, fps, duration });
-    if (mode === "mov" && !(await frameHasTransparency(frames[0]))) {
-      throw new Error("透明帧校验失败，请重新导出 MOV。");
-    }
     exportStatus.textContent = "正在编码导出文件";
     setProgress(0.82);
     const baseName = safeBaseName(sourceName);
