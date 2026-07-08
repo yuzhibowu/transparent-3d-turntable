@@ -106,7 +106,6 @@ app.innerHTML = `
         <h2 data-i18n="exportMode">输出格式</h2>
         <div class="modeGrid" role="radiogroup" aria-label="导出模式">
           <label><input type="radio" name="mode" value="mov" checked /><span>MOV</span></label>
-          <label><input type="radio" name="mode" value="mov-qtrle" /><span>MOV qtrle 测试</span></label>
           <label><input type="radio" name="mode" value="png" /><span data-i18n="pngSequence">PNG 序列</span></label>
           <label><input type="radio" name="mode" value="gif" /><span>GIF</span></label>
           <label><input type="radio" name="mode" value="apng" /><span data-i18n="pngAnimation">PNG 动图</span></label>
@@ -219,6 +218,7 @@ const renderer = new THREE.WebGLRenderer({
   preserveDrawingBuffer: true,
 });
 renderer.setClearColor(0x000000, 0);
+renderer.setClearAlpha(0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -310,6 +310,7 @@ function applyRenderSettings() {
   fillLight.intensity = renderSettings.fillLightIntensity;
   keyLight.shadow.intensity = renderSettings.shadowIntensity;
   renderer.setClearColor(0x000000, 0);
+  renderer.setClearAlpha(0);
   updateMaterialEnvironment();
   applyModelOffset();
 }
@@ -640,17 +641,7 @@ async function exportAnimatedFile({ mode, frames, fps, baseName }) {
     mimeType = "video/quicktime";
     args = [
       "-framerate", String(fps), "-i", "frame_%05d.png",
-      "-vf", "format=rgba",
-      "-c:v", "prores_ks", "-profile:v", "4", "-pix_fmt", "yuva444p10le", "-alpha_bits", "16", "-vendor", "apl0",
-      outputName,
-    ];
-  } else if (mode === "mov-qtrle") {
-    outputName = `${baseName}_qtrle_alpha_test.mov`;
-    mimeType = "video/quicktime";
-    args = [
-      "-framerate", String(fps), "-i", "frame_%05d.png",
-      "-vf", "format=rgba",
-      "-c:v", "qtrle", "-pix_fmt", "argb",
+      "-c:v", "prores_ks", "-profile:v", "4", "-pix_fmt", "yuva444p10le", "-vendor", "apl0",
       outputName,
     ];
   } else if (mode === "gif") {
@@ -682,9 +673,6 @@ async function exportAnimatedFile({ mode, frames, fps, baseName }) {
     if (exitCode !== 0) throw new Error(getLatestLog() || `编码器退出，错误码 ${exitCode}`);
     if (mode === "mov" && !/Video: prores \(ap4h[\s\S]*yuva444p10le/.test(getLogs())) {
       throw new Error("MOV 编码结果未通过 ProRes 4444 Alpha 校验。");
-    }
-    if (mode === "mov-qtrle" && !/Video: qtrle[\s\S]*argb/.test(getLogs())) {
-      throw new Error("qtrle MOV 编码结果未通过 Alpha 测试格式校验。");
     }
     const output = await ffmpeg.readFile(outputName);
     return { blob: new Blob([output.buffer], { type: mimeType }), filename: outputName };
