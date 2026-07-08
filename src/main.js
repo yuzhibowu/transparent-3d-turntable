@@ -68,6 +68,13 @@ app.innerHTML = `
             <input id="fileInput" type="file" accept=".usdz,.obj,.glb,.gltf,model/vnd.usdz+zip,model/obj,model/gltf-binary" />
             <span data-i18n="importModel">导入模型</span>
           </label>
+          <div class="positionControls" aria-label="模型位置">
+            <span aria-hidden="true">↔</span>
+            <input id="positionXRange" type="range" min="-50" max="50" step="1" value="0" disabled aria-label="左右移动模型" />
+            <button id="resetPositionButton" class="resetPositionButton" type="button" title="居中模型" aria-label="居中模型" disabled>⌖</button>
+            <span aria-hidden="true">↕</span>
+            <input id="positionYRange" type="range" min="-50" max="50" step="1" value="0" disabled aria-label="上下移动模型" />
+          </div>
           <p id="modelStatus">导入 USDZ、OBJ 或 GLB 模型开始渲染</p>
         </div>
       </header>
@@ -168,6 +175,9 @@ const fpsInput = document.querySelector("#fpsInput");
 const sizePresetButtons = document.querySelectorAll(".sizePreset");
 const fpsPresetButtons = document.querySelectorAll(".fpsPreset");
 const resetViewButton = document.querySelector("#resetViewButton");
+const positionXRange = document.querySelector("#positionXRange");
+const positionYRange = document.querySelector("#positionYRange");
+const resetPositionButton = document.querySelector("#resetPositionButton");
 const wechatButton = document.querySelector("#wechatButton");
 const wechatBubble = document.querySelector("#wechatBubble");
 const previewToggle = document.querySelector("#previewToggle");
@@ -211,6 +221,7 @@ let sourceName = "turntable";
 let lastTime = performance.now();
 let isExporting = false;
 let isPreviewPlaying = true;
+let modelOffset = new THREE.Vector2(0, 0);
 
 const translations = {
   zh: { importModel: "导入模型", rotation: "旋转", clockwise: "顺时针", counterclockwise: "逆时针", duration: "整圈时长", seconds: "秒", speed: "旋转速度", degreesPerSecond: "度/秒", exportMode: "输出格式", pngSequence: "PNG 序列", pngAnimation: "PNG 动图", outputSize: "输出尺寸", width: "宽度", height: "高度", renderFps: "输出帧率", exportAnimation: "导出动画" },
@@ -279,6 +290,38 @@ function syncFromSpeed() {
   const duration = 360 / speed;
   durationInput.value = duration.toFixed(duration >= 10 ? 1 : 2);
   speedRange.value = String(Math.min(720, Math.max(15, speed)));
+}
+
+function setPositionControlsEnabled(isEnabled) {
+  positionXRange.disabled = !isEnabled;
+  positionYRange.disabled = !isEnabled;
+  resetPositionButton.disabled = !isEnabled;
+}
+
+function offsetRange() {
+  if (!modelFrame) return 1;
+  return Math.max(modelFrame.height, modelFrame.diameter, 0.001) * 0.5;
+}
+
+function applyModelOffset() {
+  if (!modelRoot) return;
+  const range = offsetRange();
+  modelRoot.position.set(modelOffset.x * range, modelOffset.y * range, 0);
+}
+
+function syncModelOffsetFromControls() {
+  modelOffset.set(
+    THREE.MathUtils.clamp((Number(positionXRange.value) || 0) / 100, -0.5, 0.5),
+    THREE.MathUtils.clamp((Number(positionYRange.value) || 0) / 100, -0.5, 0.5),
+  );
+  applyModelOffset();
+}
+
+function resetModelOffset() {
+  modelOffset.set(0, 0);
+  positionXRange.value = "0";
+  positionYRange.value = "0";
+  applyModelOffset();
 }
 
 function measureObjectForTurntable(object, content) {
@@ -369,6 +412,7 @@ async function loadModel(file) {
     normalizeMaterials(modelRoot);
     scene.add(modelRoot);
     modelFrame = measureObjectForTurntable(modelRoot, loaded);
+    resetModelOffset();
     fitCameraToFrame();
     initialView = {
       position: camera.position.clone(),
@@ -382,6 +426,7 @@ async function loadModel(file) {
     exportStatus.textContent = "可导出";
     exportButton.disabled = false;
     resetViewButton.disabled = false;
+    setPositionControlsEnabled(true);
   } finally {
     URL.revokeObjectURL(url);
   }
@@ -613,8 +658,13 @@ resetViewButton.addEventListener("click", () => {
   camera.far = initialView.far;
   camera.updateProjectionMatrix();
   modelRoot.rotation.y = 0;
+  resetModelOffset();
   controls.update();
 });
+
+positionXRange.addEventListener("input", syncModelOffsetFromControls);
+positionYRange.addEventListener("input", syncModelOffsetFromControls);
+resetPositionButton.addEventListener("click", resetModelOffset);
 
 wechatButton.addEventListener("click", (event) => {
   event.stopPropagation();
@@ -694,5 +744,6 @@ exportButton.addEventListener("click", exportTurntable);
 window.addEventListener("resize", resizePreview);
 
 syncFromDuration();
+setPositionControlsEnabled(false);
 resizePreview();
 requestAnimationFrame(frame);
