@@ -524,7 +524,7 @@ function canvasToPng() {
   });
 }
 
-async function renderFrames({ width, height, fps, duration }) {
+async function renderFrames({ width, height, fps, duration, forceTransparent = false }) {
   const previewSize = { width: dropZone.clientWidth, height: dropZone.clientHeight };
   const originalRotation = modelRoot.rotation.y;
   const originalCameraPosition = camera.position.clone();
@@ -537,6 +537,7 @@ async function renderFrames({ width, height, fps, duration }) {
   renderer.setPixelRatio(1);
   renderer.setSize(width, height, false);
   applyRenderSettings();
+  if (forceTransparent) renderer.setClearAlpha(0);
   camera.aspect = width / height;
   camera.position.copy(originalCameraPosition);
   controls.target.copy(originalCameraTarget);
@@ -566,7 +567,23 @@ async function renderFrames({ width, height, fps, duration }) {
   camera.updateProjectionMatrix();
   controls.update();
   applyModelOffset();
+  applyRenderSettings();
   return frames;
+}
+
+async function frameHasTransparency(dataUrl) {
+  const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
+  const sampleCanvas = document.createElement("canvas");
+  sampleCanvas.width = 16;
+  sampleCanvas.height = 16;
+  const context = sampleCanvas.getContext("2d", { willReadFrequently: true });
+  context.drawImage(bitmap, 0, 0, 16, 16);
+  bitmap.close();
+  const pixels = context.getImageData(0, 0, 16, 16).data;
+  for (let index = 3; index < pixels.length; index += 4) {
+    if (pixels[index] < 255) return true;
+  }
+  return false;
 }
 
 function safeBaseName(value) {
@@ -605,18 +622,20 @@ async function loadBrowserFfmpeg() {
   const [coreURL, wasmURL] = await ffmpegCoreUrls;
   const ffmpeg = new FFmpeg();
   let latestLog = "";
+  const logs = [];
   ffmpeg.on("log", ({ message }) => {
     latestLog = message;
+    logs.push(message);
   });
   ffmpeg.on("progress", ({ progress }) => {
     if (Number.isFinite(progress)) setProgress(0.84 + Math.min(1, Math.max(0, progress)) * 0.15);
   });
   await ffmpeg.load({ coreURL, wasmURL });
-  return { ffmpeg, getLatestLog: () => latestLog };
+  return { ffmpeg, getLatestLog: () => latestLog, getLogs: () => logs.join("\n") };
 }
 
 async function exportAnimatedFile({ mode, frames, fps, baseName }) {
-  const { ffmpeg, getLatestLog } = await loadBrowserFfmpeg();
+  const { ffmpeg, getLatestLog, getLogs } = await loadBrowserFfmpeg();
   const frameNames = frames.map((_, index) => `frame_${String(index).padStart(5, "0")}.png`);
   let outputName;
   let mimeType;
@@ -627,7 +646,8 @@ async function exportAnimatedFile({ mode, frames, fps, baseName }) {
     mimeType = "video/quicktime";
     args = [
       "-framerate", String(fps), "-i", "frame_%05d.png",
-      "-c:v", "prores_ks", "-profile:v", "4", "-pix_fmt", "yuva444p10le", "-vendor", "apl0",
+      "-c:v", "prores_ks", "-profile:v", "4", "-pix_fmt", "yuva444p10le",
+      "-alpha_bits", "16", "-vtag", "ap4h", "-vendor", "apl0",
       outputName,
     ];
   } else if (mode === "gif") {
@@ -655,6 +675,9 @@ async function exportAnimatedFile({ mode, frames, fps, baseName }) {
     exportStatus.textContent = "正在浏览器中编码，请保持页面开启";
     const exitCode = await ffmpeg.exec(args);
     if (exitCode !== 0) throw new Error(getLatestLog() || `编码器退出，错误码 ${exitCode}`);
+    if (mode === "mov" && !/Video: prores \(ap4h[\s\S]*yuva444p10le/.test(getLogs())) {
+      throw new Error("MOV 编码结果未通过 ProRes 4444 Alpha 校验。");
+    }
     const output = await ffmpeg.readFile(outputName);
     return { blob: new Blob([output.buffer], { type: mimeType }), filename: outputName };
   } finally {
@@ -676,7 +699,10 @@ async function exportTurntable() {
   const duration = Math.max(0.2, Number(durationInput.value) || 4);
 
   try {
-    const frames = await renderFrames({ width, height, fps, duration });
+    const frames = await renderFrames({ width, height, fps, duration, forceTransparent: mode === "mov" });
+    if (mode === "mov" && !(await frameHasTransparency(frames[0]))) {
+      throw new Error("透明帧校验失败，请重新导出 MOV。");
+    }
     exportStatus.textContent = "正在编码导出文件";
     setProgress(0.82);
     const baseName = safeBaseName(sourceName);
