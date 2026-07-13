@@ -601,12 +601,14 @@ label {
   bottom: calc(100% + 6px);
   display: grid;
   width: 100%;
+  max-height: calc(100dvh - 135px);
   gap: 13px;
   padding: 14px;
   border: 1px solid #1d1d1f;
   border-radius: 0;
   background: #ffffff;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
+  overflow-y: auto;
 }
 
 .lightingPanel[hidden] {
@@ -615,6 +617,7 @@ label {
 
 .lightingPanel label,
 .lightingMode,
+.toneMappingControls,
 .modelPositionControls {
   gap: 7px;
   color: #424245;
@@ -642,6 +645,17 @@ label {
 
 .lightingMode {
   display: grid;
+}
+
+.toneMappingControls {
+  display: grid;
+  gap: 7px;
+}
+
+.toneMappingControls > span {
+  color: #424245;
+  font-size: 13px;
+  font-weight: 680;
 }
 
 .modelPositionControls {
@@ -675,6 +689,23 @@ label {
 }
 
 .lightingPreset.active {
+  border-color: #1d1d1f;
+  background: #1d1d1f;
+  color: #ffffff;
+}
+
+.toneMappingPreset {
+  min-height: 32px;
+  border: 1px solid #d2d2d7;
+  border-radius: 0;
+  background: #ffffff;
+  color: #424245;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.toneMappingPreset.active {
   border-color: #1d1d1f;
   background: #1d1d1f;
   color: #ffffff;

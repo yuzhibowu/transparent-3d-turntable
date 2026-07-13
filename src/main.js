@@ -4,6 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { USDZLoader } from "three/examples/jsm/loaders/USDZLoader.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import JSZip from "jszip";
@@ -154,6 +155,13 @@ app.innerHTML = `
               <span><span data-i18n="keyLightAngle">主光角度</span><output id="lightAngleValue">45°</output></span>
               <input id="lightAngleRange" type="range" min="-180" max="180" step="1" value="45" />
             </label>
+            <div class="toneMappingControls">
+              <span data-i18n="toneMapping">色彩映射</span>
+              <div class="lightingModeGrid" role="radiogroup" aria-label="色彩映射">
+                <button class="toneMappingPreset active" type="button" data-tone-mapping="linear" aria-pressed="true">Linear</button>
+                <button class="toneMappingPreset" type="button" data-tone-mapping="aces" aria-pressed="false">ACES</button>
+              </div>
+            </div>
             <div class="lightingMode">
               <span data-i18n="lightingMode">布光模式</span>
               <div class="lightingModeGrid" role="radiogroup" aria-label="布光模式">
@@ -165,11 +173,11 @@ app.innerHTML = `
               <span data-i18n="modelPosition">模型位置</span>
               <label>
                 <span><span data-i18n="horizontalPosition">水平位置</span><output id="positionXValue">0</output></span>
-                <input id="positionXRange" type="range" min="-100" max="100" step="1" value="0" />
+                <input id="positionXRange" type="range" min="-200" max="200" step="1" value="0" />
               </label>
               <label>
                 <span><span data-i18n="verticalPosition">垂直位置</span><output id="positionYValue">0</output></span>
-                <input id="positionYRange" type="range" min="-100" max="100" step="1" value="0" />
+                <input id="positionYRange" type="range" min="-200" max="200" step="1" value="0" />
               </label>
             </div>
           </div>
@@ -220,6 +228,7 @@ const shadowValue = document.querySelector("#shadowValue");
 const lightAngleRange = document.querySelector("#lightAngleRange");
 const lightAngleValue = document.querySelector("#lightAngleValue");
 const lightingPresetButtons = document.querySelectorAll(".lightingPreset");
+const toneMappingPresetButtons = document.querySelectorAll(".toneMappingPreset");
 const positionXRange = document.querySelector("#positionXRange");
 const positionXValue = document.querySelector("#positionXValue");
 const positionYRange = document.querySelector("#positionYRange");
@@ -240,10 +249,14 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setClearColor(0x000000, 0);
 renderer.setClearAlpha(0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMapping = THREE.LinearToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const pmremGenerator = new THREE.PMREMGenerator(renderer);
+const studioEnvironment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+pmremGenerator.dispose();
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -258,6 +271,7 @@ keyLight.shadow.mapSize.set(1024, 1024);
 keyLight.shadow.camera.near = 0.1;
 keyLight.shadow.camera.far = 30;
 scene.add(hemisphereLight, keyLight, fillLight, rimLight);
+scene.environment = studioEnvironment;
 
 // Preview and export both render this same scene, so these values travel with every frame.
 const renderSettings = {
@@ -267,6 +281,7 @@ const renderSettings = {
   fillLightIntensity: 1.6,
   shadowIntensity: 0.55,
   keyAngle: 45,
+  toneMapping: "linear",
   lightingMode: "threePoint",
 };
 const modelOffset = { x: 0, y: 0 };
@@ -277,7 +292,11 @@ function positionLight(light, angle, height, radius) {
 }
 
 function applyRenderSettings() {
+  renderer.toneMapping = renderSettings.toneMapping === "aces"
+    ? THREE.ACESFilmicToneMapping
+    : THREE.LinearToneMapping;
   renderer.toneMappingExposure = renderSettings.exposure;
+  scene.environmentIntensity = renderSettings.environmentIntensity;
   const isRembrandt = renderSettings.lightingMode === "rembrandt";
   const keyAngle = renderSettings.keyAngle;
 
@@ -291,6 +310,17 @@ function applyRenderSettings() {
   positionLight(fillLight, keyAngle + (isRembrandt ? 118 : 165), isRembrandt ? 2.2 : 2, 4.5);
   positionLight(rimLight, keyAngle + 180, isRembrandt ? 4.2 : 3.5, 5);
 
+  if (modelRoot) {
+    modelRoot.traverse((child) => {
+      if (!child.isMesh || !child.material) return;
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      materials.forEach((material) => {
+        if ("envMapIntensity" in material) material.envMapIntensity = renderSettings.environmentIntensity;
+        material.needsUpdate = true;
+      });
+    });
+  }
+
   exposureValue.value = renderSettings.exposure.toFixed(2);
   environmentValue.value = renderSettings.environmentIntensity.toFixed(2);
   keyLightValue.value = renderSettings.keyLightIntensity.toFixed(2);
@@ -302,15 +332,13 @@ function applyRenderSettings() {
 function applyModelOffset() {
   if (!modelRoot || !modelFrame) return;
   modelRoot.position.set(
-    modelOffset.x / 100 * modelFrame.diameter * 0.3,
-    modelOffset.y / 100 * modelFrame.height * 0.3,
+    modelOffset.x / 200 * modelFrame.diameter * 0.3,
+    modelOffset.y / 200 * modelFrame.height * 0.3,
     0,
   );
   positionXValue.value = String(modelOffset.x);
   positionYValue.value = String(modelOffset.y);
 }
-
-applyRenderSettings();
 
 let modelRoot = null;
 let modelFrame = null;
@@ -320,10 +348,12 @@ let lastTime = performance.now();
 let isExporting = false;
 let isPreviewPlaying = true;
 
+applyRenderSettings();
+
 const translations = {
-  zh: { importModel: "导入模型", rotation: "旋转", clockwise: "顺时针", counterclockwise: "逆时针", duration: "整圈时长", seconds: "秒", speed: "旋转速度", degreesPerSecond: "度/秒", exportMode: "输出格式", pngSequence: "PNG 序列", pngAnimation: "PNG 动图", outputSize: "输出尺寸", width: "宽度", height: "高度", renderFps: "输出帧率", exportAnimation: "导出动画", lighting: "灯光与画面", exposure: "曝光强度", environmentIntensity: "环境光强度", keyLightIntensity: "主光强度", fillLightIntensity: "补光强度", shadowIntensity: "阴影强度", keyLightAngle: "主光角度", lightingMode: "布光模式", threePoint: "三点布光", rembrandt: "伦勃朗布光", modelPosition: "模型位置", horizontalPosition: "水平位置", verticalPosition: "垂直位置" },
-  en: { importModel: "Import Model", rotation: "Rotation", clockwise: "Clockwise", counterclockwise: "Counterclockwise", duration: "Full Turn", seconds: "sec", speed: "Rotation Speed", degreesPerSecond: "deg/s", exportMode: "Output Format", pngSequence: "PNG Sequence", pngAnimation: "Animated PNG", outputSize: "Output Size", width: "Width", height: "Height", renderFps: "Output Frame Rate", exportAnimation: "Export Animation", lighting: "Lighting", exposure: "Exposure", environmentIntensity: "Environment", keyLightIntensity: "Key Light", fillLightIntensity: "Fill Light", shadowIntensity: "Shadow", keyLightAngle: "Key Light Angle", lightingMode: "Lighting Mode", threePoint: "Three-point", rembrandt: "Rembrandt", modelPosition: "Model Position", horizontalPosition: "Horizontal", verticalPosition: "Vertical" },
-  fr: { importModel: "Importer", rotation: "Rotation", clockwise: "Horaire", counterclockwise: "Antihoraire", duration: "Tour complet", seconds: "s", speed: "Vitesse", degreesPerSecond: "deg/s", exportMode: "Format de sortie", pngSequence: "Séquence PNG", pngAnimation: "PNG animé", outputSize: "Dimensions", width: "Largeur", height: "Hauteur", renderFps: "Fréquence de sortie", exportAnimation: "Exporter l’animation", lighting: "Éclairage", exposure: "Exposition", environmentIntensity: "Ambiance", keyLightIntensity: "Lumière principale", fillLightIntensity: "Lumière d’appoint", shadowIntensity: "Ombres", keyLightAngle: "Angle principal", lightingMode: "Mode d’éclairage", threePoint: "Trois points", rembrandt: "Rembrandt", modelPosition: "Position du modèle", horizontalPosition: "Horizontal", verticalPosition: "Vertical" },
+  zh: { importModel: "导入模型", rotation: "旋转", clockwise: "顺时针", counterclockwise: "逆时针", duration: "整圈时长", seconds: "秒", speed: "旋转速度", degreesPerSecond: "度/秒", exportMode: "输出格式", pngSequence: "PNG 序列", pngAnimation: "PNG 动图", outputSize: "输出尺寸", width: "宽度", height: "高度", renderFps: "输出帧率", exportAnimation: "导出动画", lighting: "灯光与画面", exposure: "曝光强度", environmentIntensity: "环境光强度", keyLightIntensity: "主光强度", fillLightIntensity: "补光强度", shadowIntensity: "阴影强度", keyLightAngle: "主光角度", toneMapping: "色彩映射", lightingMode: "布光模式", threePoint: "三点布光", rembrandt: "伦勃朗布光", modelPosition: "模型位置", horizontalPosition: "水平位置", verticalPosition: "垂直位置" },
+  en: { importModel: "Import Model", rotation: "Rotation", clockwise: "Clockwise", counterclockwise: "Counterclockwise", duration: "Full Turn", seconds: "sec", speed: "Rotation Speed", degreesPerSecond: "deg/s", exportMode: "Output Format", pngSequence: "PNG Sequence", pngAnimation: "Animated PNG", outputSize: "Output Size", width: "Width", height: "Height", renderFps: "Output Frame Rate", exportAnimation: "Export Animation", lighting: "Lighting", exposure: "Exposure", environmentIntensity: "Environment", keyLightIntensity: "Key Light", fillLightIntensity: "Fill Light", shadowIntensity: "Shadow", keyLightAngle: "Key Light Angle", toneMapping: "Tone Mapping", lightingMode: "Lighting Mode", threePoint: "Three-point", rembrandt: "Rembrandt", modelPosition: "Model Position", horizontalPosition: "Horizontal", verticalPosition: "Vertical" },
+  fr: { importModel: "Importer", rotation: "Rotation", clockwise: "Horaire", counterclockwise: "Antihoraire", duration: "Tour complet", seconds: "s", speed: "Vitesse", degreesPerSecond: "deg/s", exportMode: "Format de sortie", pngSequence: "Séquence PNG", pngAnimation: "PNG animé", outputSize: "Dimensions", width: "Largeur", height: "Hauteur", renderFps: "Fréquence de sortie", exportAnimation: "Exporter l’animation", lighting: "Éclairage", exposure: "Exposition", environmentIntensity: "Ambiance", keyLightIntensity: "Lumière principale", fillLightIntensity: "Lumière d’appoint", shadowIntensity: "Ombres", keyLightAngle: "Angle principal", toneMapping: "Rendu des couleurs", lightingMode: "Mode d’éclairage", threePoint: "Trois points", rembrandt: "Rembrandt", modelPosition: "Position du modèle", horizontalPosition: "Horizontal", verticalPosition: "Vertical" },
   ja: { importModel: "モデル読込", rotation: "回転", clockwise: "時計回り", counterclockwise: "反時計回り", duration: "一周時間", seconds: "秒", speed: "回転速度", degreesPerSecond: "度/秒", exportMode: "出力形式", pngSequence: "PNG 連番", pngAnimation: "アニメ PNG", outputSize: "出力サイズ", width: "幅", height: "高さ", renderFps: "出力フレームレート", exportAnimation: "アニメを書き出す" },
   de: { importModel: "Modell laden", rotation: "Drehung", clockwise: "Im Uhrzeigersinn", counterclockwise: "Gegen Uhrzeigersinn", duration: "Volle Runde", seconds: "s", speed: "Drehgeschwindigkeit", degreesPerSecond: "Grad/s", exportMode: "Ausgabeformat", pngSequence: "PNG-Sequenz", pngAnimation: "Animiertes PNG", outputSize: "Ausgabegröße", width: "Breite", height: "Höhe", renderFps: "Ausgabebildrate", exportAnimation: "Animation exportieren" },
   ko: { importModel: "모델 가져오기", rotation: "회전", clockwise: "시계 방향", counterclockwise: "반시계 방향", duration: "한 바퀴 시간", seconds: "초", speed: "회전 속도", degreesPerSecond: "도/초", exportMode: "출력 형식", pngSequence: "PNG 시퀀스", pngAnimation: "애니메이션 PNG", outputSize: "출력 크기", width: "너비", height: "높이", renderFps: "출력 프레임 속도", exportAnimation: "애니메이션 내보내기" },
@@ -482,6 +512,7 @@ async function loadModel(file) {
     modelRoot.add(loaded);
     normalizeMaterials(modelRoot);
     scene.add(modelRoot);
+    applyRenderSettings();
     modelFrame = measureObjectForTurntable(modelRoot, loaded);
     modelOffset.x = 0;
     modelOffset.y = 0;
@@ -806,6 +837,18 @@ shadowRange.addEventListener("input", () => {
 lightAngleRange.addEventListener("input", () => {
   renderSettings.keyAngle = Number(lightAngleRange.value);
   applyRenderSettings();
+});
+
+toneMappingPresetButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    renderSettings.toneMapping = button.dataset.toneMapping;
+    toneMappingPresetButtons.forEach((item) => {
+      const active = item === button;
+      item.classList.toggle("active", active);
+      item.setAttribute("aria-pressed", String(active));
+    });
+    applyRenderSettings();
+  });
 });
 
 positionXRange.addEventListener("input", () => {
