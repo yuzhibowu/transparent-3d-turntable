@@ -9,7 +9,8 @@ import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import JSZip from "jszip";
 
 const app = document.querySelector("#app");
-const ffmpegCoreBase = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm";
+const ffmpegCoreRevision = "turntable-7.1-r1";
+const ffmpegCoreBase = "/ffmpeg-core";
 let ffmpegCoreUrls = null;
 
 app.innerHTML = `
@@ -159,6 +160,7 @@ const exportStatus = document.querySelector("#exportStatus");
 const progressBar = document.querySelector("#progressBar");
 
 const scene = new THREE.Scene();
+scene.background = null;
 const camera = new THREE.PerspectiveCamera(35, 1, 0.01, 1000);
 camera.position.set(0, 1.2, 4);
 
@@ -167,8 +169,10 @@ const renderer = new THREE.WebGLRenderer({
   alpha: true,
   antialias: true,
   preserveDrawingBuffer: true,
+  premultipliedAlpha: false,
 });
 renderer.setClearColor(0x000000, 0);
+renderer.setClearAlpha(0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
@@ -233,6 +237,11 @@ function resizePreview() {
 }
 
 function render() {
+  // Lighting affects rendered meshes only. The WebGL buffer is cleared to transparent first.
+  scene.background = null;
+  renderer.setClearColor(0x000000, 0);
+  renderer.setClearAlpha(0);
+  renderer.clear(true, true, true);
   renderer.render(scene, camera);
 }
 
@@ -372,6 +381,9 @@ async function loadModel(file) {
 function canvasToPng() {
   return new Promise((resolve) => {
     canvas.toBlob((blob) => {
+      if (!blob) {
+        throw new Error("无法创建透明 PNG 帧。");
+      }
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
       reader.readAsDataURL(blob);
@@ -435,6 +447,25 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function markAppleProResVendor(data) {
+  const ffmpegVendor = [0x46, 0x46, 0x4d, 0x50]; // FFMP
+  const appleVendor = [0x61, 0x70, 0x6c, 0x30]; // apl0
+  let replacements = 0;
+
+  for (let index = 0; index <= data.length - ffmpegVendor.length; index += 1) {
+    if (ffmpegVendor.every((value, offset) => data[index + offset] === value)) {
+      data.set(appleVendor, index);
+      replacements += 1;
+    }
+  }
+
+  if (replacements !== 1) {
+    console.warn(`[MOV export] Expected one ProRes FFMP vendor tag, found ${replacements}.`);
+  }
+
+  return data;
+}
+
 async function exportPngSequence(frames, baseName) {
   const zip = new JSZip();
   frames.forEach((frame, index) => {
@@ -450,8 +481,8 @@ async function loadBrowserFfmpeg() {
   exportStatus.textContent = "首次使用，正在加载编码器（约 31 MB）";
   if (!ffmpegCoreUrls) {
     ffmpegCoreUrls = Promise.all([
-      toBlobURL(`${ffmpegCoreBase}/ffmpeg-core.js`, "text/javascript"),
-      toBlobURL(`${ffmpegCoreBase}/ffmpeg-core.wasm`, "application/wasm"),
+      toBlobURL(`${ffmpegCoreBase}/ffmpeg-core.js?v=${ffmpegCoreRevision}`, "text/javascript"),
+      toBlobURL(`${ffmpegCoreBase}/ffmpeg-core.wasm?v=${ffmpegCoreRevision}`, "application/wasm"),
     ]);
   }
 
@@ -476,11 +507,12 @@ async function exportAnimatedFile({ mode, frames, fps, baseName }) {
   let args;
 
   if (mode === "mov") {
-    outputName = `${baseName}_prores4444.mov`;
+    outputName = `${baseName}_prores4444xq.mov`;
     mimeType = "video/quicktime";
     args = [
       "-framerate", String(fps), "-i", "frame_%05d.png",
-      "-c:v", "prores_ks", "-profile:v", "4", "-pix_fmt", "yuva444p10le", "-vendor", "apl0",
+      "-c:v", "prores_ks", "-profile:v", "5", "-bits_per_mb", "8000",
+      "-pix_fmt", "yuva444p10le", "-alpha_bits", "16", "-vendor", "apl0",
       outputName,
     ];
   } else if (mode === "gif") {
@@ -509,7 +541,8 @@ async function exportAnimatedFile({ mode, frames, fps, baseName }) {
     const exitCode = await ffmpeg.exec(args);
     if (exitCode !== 0) throw new Error(getLatestLog() || `编码器退出，错误码 ${exitCode}`);
     const output = await ffmpeg.readFile(outputName);
-    return { blob: new Blob([output.buffer], { type: mimeType }), filename: outputName };
+    const fileData = mode === "mov" ? markAppleProResVendor(output) : output;
+    return { blob: new Blob([fileData], { type: mimeType }), filename: outputName };
   } finally {
     await Promise.allSettled([...frameNames, outputName].map((name) => ffmpeg.deleteFile(name)));
     ffmpeg.terminate();
