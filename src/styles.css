@@ -384,7 +384,8 @@ canvas {
   flex-direction: column;
   gap: 0;
   padding: 0 16px 9px;
-  overflow: hidden;
+  position: relative;
+  overflow: visible;
 }
 
 .group + .group {
@@ -567,13 +568,14 @@ label {
 
 .lightingControl {
   position: relative;
+  z-index: 3;
   width: 100%;
 }
 
 .lightingToggle {
   display: inline-flex;
-  width: 100%;
-  min-height: 40px;
+  width: calc((100% - 8px) / 2);
+  min-height: 38px;
   align-items: center;
   justify-content: center;
   border: 1px solid #1d1d1f;
@@ -594,7 +596,8 @@ label {
 .lightingPanel {
   position: absolute;
   z-index: 10;
-  right: 0;
+  right: auto;
+  left: 0;
   bottom: calc(100% + 6px);
   display: grid;
   width: 100%;
@@ -611,7 +614,8 @@ label {
 }
 
 .lightingPanel label,
-.lightingMode {
+.lightingMode,
+.modelPositionControls {
   gap: 7px;
   color: #424245;
   font-size: 13px;
@@ -638,6 +642,19 @@ label {
 
 .lightingMode {
   display: grid;
+}
+
+.modelPositionControls {
+  display: grid;
+  gap: 10px;
+  padding-top: 13px;
+  border-top: 1px solid #d2d2d7;
+}
+
+.modelPositionControls > span {
+  color: #1d1d1f;
+  font-size: 13px;
+  font-weight: 780;
 }
 
 .lightingModeGrid {
@@ -758,7 +775,7 @@ label {
   }
 
   .lightingToggle {
-    min-height: 26px;
+    min-height: 22px;
   }
 
   .field input {
