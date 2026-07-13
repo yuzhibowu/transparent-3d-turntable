@@ -1,0 +1,29 @@
+name: Build turntable FFmpeg wasm core
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Fetch ffmpeg.wasm sources
+        run: git clone --depth 1 --recurse-submodules https://github.com/ffmpegwasm/ffmpeg.wasm.git ffmpeg-wasm
+
+      - name: Use FFmpeg 7.1 for current ProRes alpha support
+        working-directory: ffmpeg-wasm
+        run: sed -i 's/ENV FFMPEG_VERSION=n5.1.4/ENV FFMPEG_VERSION=n7.1/' Dockerfile
+
+      - name: Build single-threaded browser core
+        working-directory: ffmpeg-wasm
+        run: make prd
+
+      - name: Package browser assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: turntable-ffmpeg-core-7.1
+          path: |
+            ffmpeg-wasm/packages/core/dist/esm/ffmpeg-core.js
+            ffmpeg-wasm/packages/core/dist/esm/ffmpeg-core.wasm
+          if-no-files-found: error
