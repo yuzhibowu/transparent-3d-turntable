@@ -13,7 +13,12 @@ jobs:
 
       - name: Use FFmpeg 7.1 for current ProRes alpha support
         working-directory: ffmpeg-wasm
-        run: sed -i 's/ENV FFMPEG_VERSION=n5.1.4/ENV FFMPEG_VERSION=n7.1/' Dockerfile
+        run: |
+          sed -i 's/ENV FFMPEG_VERSION=n5.1.4/ENV FFMPEG_VERSION=n7.1/' Dockerfile
+          # The wasm command wrapper targets FFmpeg 5.1. These fields were
+          # renamed or removed in FFmpeg 7; neither affects PNG-to-MOV output.
+          sed -i 's/pkt_duration/duration/g' src/fftools/ffmpeg.c src/fftools/ffprobe.c
+          sed -i '/\/\* compute min output value \*\//,/^        }$/d' src/fftools/ffmpeg.c
 
       - name: Build single-threaded browser core
         working-directory: ffmpeg-wasm
