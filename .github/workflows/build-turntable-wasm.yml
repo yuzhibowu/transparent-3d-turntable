@@ -19,6 +19,9 @@ jobs:
           # renamed or removed in FFmpeg 7; neither affects PNG-to-MOV output.
           sed -i 's/pkt_duration/duration/g' src/fftools/ffmpeg.c src/fftools/ffprobe.c
           sed -i '/\/\* compute min output value \*\//,/^        }$/d' src/fftools/ffmpeg.c
+          # This app only invokes ffmpeg. Excluding the unused legacy ffprobe
+          # program avoids unrelated AVFrame fields removed by FFmpeg 7.
+          sed -i '/src\/fftools\/ffprobe.c/d' build/ffmpeg-wasm.sh
 
       - name: Build single-threaded browser core
         working-directory: ffmpeg-wasm
