@@ -22,6 +22,9 @@ jobs:
           # This app only invokes ffmpeg. Excluding the unused legacy ffprobe
           # program avoids unrelated AVFrame fields removed by FFmpeg 7.
           sed -i '/src\/fftools\/ffprobe.c/d' build/ffmpeg-wasm.sh
+          # FFmpeg 7.1 links to just over 35 MB; leave room for the module and
+          # let its memory grow during actual browser exports.
+          sed -i 's/-sINITIAL_MEMORY=32MB/-sINITIAL_MEMORY=64MB/' build/ffmpeg-wasm.sh
 
       - name: Build single-threaded browser core
         working-directory: ffmpeg-wasm
