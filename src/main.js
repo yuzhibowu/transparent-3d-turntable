@@ -127,6 +127,26 @@ app.innerHTML = `
       </div>
 
       <div class="exportDock">
+        <div class="lightingControl">
+          <button id="lightingToggle" class="lightingToggle" type="button" aria-expanded="false" data-i18n="lighting">灯光与画面</button>
+          <div id="lightingPanel" class="lightingPanel" hidden>
+            <label>
+              <span><span data-i18n="exposure">曝光强度</span><output id="exposureValue">1.05</output></span>
+              <input id="exposureRange" type="range" min="0.25" max="3" step="0.05" value="1.05" />
+            </label>
+            <label>
+              <span><span data-i18n="keyLightAngle">主光角度</span><output id="lightAngleValue">45°</output></span>
+              <input id="lightAngleRange" type="range" min="-180" max="180" step="1" value="45" />
+            </label>
+            <div class="lightingMode">
+              <span data-i18n="lightingMode">布光模式</span>
+              <div class="lightingModeGrid" role="radiogroup" aria-label="布光模式">
+                <button class="lightingPreset active" type="button" data-lighting-mode="threePoint" aria-pressed="true" data-i18n="threePoint">三点布光</button>
+                <button class="lightingPreset" type="button" data-lighting-mode="rembrandt" aria-pressed="false" data-i18n="rembrandt">伦勃朗布光</button>
+              </div>
+            </div>
+          </div>
+        </div>
         <p id="exportStatus" class="exportStatus">等待模型</p>
         <button id="exportButton" class="exportButton" data-i18n="exportAnimation" disabled>导出动画</button>
         <div class="progress">
@@ -158,6 +178,13 @@ const languageMenu = document.querySelector("#languageMenu");
 const exportButton = document.querySelector("#exportButton");
 const exportStatus = document.querySelector("#exportStatus");
 const progressBar = document.querySelector("#progressBar");
+const lightingToggle = document.querySelector("#lightingToggle");
+const lightingPanel = document.querySelector("#lightingPanel");
+const exposureRange = document.querySelector("#exposureRange");
+const exposureValue = document.querySelector("#exposureValue");
+const lightAngleRange = document.querySelector("#lightAngleRange");
+const lightAngleValue = document.querySelector("#lightAngleValue");
+const lightingPresetButtons = document.querySelectorAll(".lightingPreset");
 
 const scene = new THREE.Scene();
 scene.background = null;
@@ -181,13 +208,43 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.autoRotate = false;
 
+const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x667085, 1.4);
 const keyLight = new THREE.DirectionalLight(0xffffff, 3.2);
-keyLight.position.set(3, 4, 4);
 const fillLight = new THREE.DirectionalLight(0x9fb8ff, 1.6);
-fillLight.position.set(-4, 2, 3);
 const rimLight = new THREE.DirectionalLight(0xfff2dc, 1.2);
-rimLight.position.set(0, 3, -4);
-scene.add(new THREE.HemisphereLight(0xffffff, 0x667085, 1.4), keyLight, fillLight, rimLight);
+scene.add(hemisphereLight, keyLight, fillLight, rimLight);
+
+// Preview and export both render this same scene, so these values travel with every frame.
+const renderSettings = {
+  exposure: 1.05,
+  keyAngle: 45,
+  lightingMode: "threePoint",
+};
+
+function positionLight(light, angle, height, radius) {
+  const radians = THREE.MathUtils.degToRad(angle);
+  light.position.set(Math.sin(radians) * radius, height, Math.cos(radians) * radius);
+}
+
+function applyRenderSettings() {
+  renderer.toneMappingExposure = renderSettings.exposure;
+  const isRembrandt = renderSettings.lightingMode === "rembrandt";
+  const keyAngle = renderSettings.keyAngle;
+
+  hemisphereLight.intensity = isRembrandt ? 0.7 : 1.4;
+  keyLight.intensity = isRembrandt ? 4.8 : 3.2;
+  fillLight.intensity = isRembrandt ? 0.45 : 1.6;
+  rimLight.intensity = isRembrandt ? 1.8 : 1.2;
+
+  positionLight(keyLight, keyAngle, isRembrandt ? 4.8 : 4, 5);
+  positionLight(fillLight, keyAngle + (isRembrandt ? 118 : 165), isRembrandt ? 2.2 : 2, 4.5);
+  positionLight(rimLight, keyAngle + 180, isRembrandt ? 4.2 : 3.5, 5);
+
+  exposureValue.value = renderSettings.exposure.toFixed(2);
+  lightAngleValue.value = `${renderSettings.keyAngle}°`;
+}
+
+applyRenderSettings();
 
 let modelRoot = null;
 let modelFrame = null;
@@ -198,9 +255,9 @@ let isExporting = false;
 let isPreviewPlaying = true;
 
 const translations = {
-  zh: { importModel: "导入模型", rotation: "旋转", clockwise: "顺时针", counterclockwise: "逆时针", duration: "整圈时长", seconds: "秒", speed: "旋转速度", degreesPerSecond: "度/秒", exportMode: "输出格式", pngSequence: "PNG 序列", pngAnimation: "PNG 动图", outputSize: "输出尺寸", width: "宽度", height: "高度", renderFps: "输出帧率", exportAnimation: "导出动画" },
-  en: { importModel: "Import Model", rotation: "Rotation", clockwise: "Clockwise", counterclockwise: "Counterclockwise", duration: "Full Turn", seconds: "sec", speed: "Rotation Speed", degreesPerSecond: "deg/s", exportMode: "Output Format", pngSequence: "PNG Sequence", pngAnimation: "Animated PNG", outputSize: "Output Size", width: "Width", height: "Height", renderFps: "Output Frame Rate", exportAnimation: "Export Animation" },
-  fr: { importModel: "Importer", rotation: "Rotation", clockwise: "Horaire", counterclockwise: "Antihoraire", duration: "Tour complet", seconds: "s", speed: "Vitesse", degreesPerSecond: "deg/s", exportMode: "Format de sortie", pngSequence: "Séquence PNG", pngAnimation: "PNG animé", outputSize: "Dimensions", width: "Largeur", height: "Hauteur", renderFps: "Fréquence de sortie", exportAnimation: "Exporter l’animation" },
+  zh: { importModel: "导入模型", rotation: "旋转", clockwise: "顺时针", counterclockwise: "逆时针", duration: "整圈时长", seconds: "秒", speed: "旋转速度", degreesPerSecond: "度/秒", exportMode: "输出格式", pngSequence: "PNG 序列", pngAnimation: "PNG 动图", outputSize: "输出尺寸", width: "宽度", height: "高度", renderFps: "输出帧率", exportAnimation: "导出动画", lighting: "灯光与画面", exposure: "曝光强度", keyLightAngle: "主光角度", lightingMode: "布光模式", threePoint: "三点布光", rembrandt: "伦勃朗布光" },
+  en: { importModel: "Import Model", rotation: "Rotation", clockwise: "Clockwise", counterclockwise: "Counterclockwise", duration: "Full Turn", seconds: "sec", speed: "Rotation Speed", degreesPerSecond: "deg/s", exportMode: "Output Format", pngSequence: "PNG Sequence", pngAnimation: "Animated PNG", outputSize: "Output Size", width: "Width", height: "Height", renderFps: "Output Frame Rate", exportAnimation: "Export Animation", lighting: "Lighting", exposure: "Exposure", keyLightAngle: "Key Light Angle", lightingMode: "Lighting Mode", threePoint: "Three-point", rembrandt: "Rembrandt" },
+  fr: { importModel: "Importer", rotation: "Rotation", clockwise: "Horaire", counterclockwise: "Antihoraire", duration: "Tour complet", seconds: "s", speed: "Vitesse", degreesPerSecond: "deg/s", exportMode: "Format de sortie", pngSequence: "Séquence PNG", pngAnimation: "PNG animé", outputSize: "Dimensions", width: "Largeur", height: "Hauteur", renderFps: "Fréquence de sortie", exportAnimation: "Exporter l’animation", lighting: "Éclairage", exposure: "Exposition", keyLightAngle: "Angle principal", lightingMode: "Mode d’éclairage", threePoint: "Trois points", rembrandt: "Rembrandt" },
   ja: { importModel: "モデル読込", rotation: "回転", clockwise: "時計回り", counterclockwise: "反時計回り", duration: "一周時間", seconds: "秒", speed: "回転速度", degreesPerSecond: "度/秒", exportMode: "出力形式", pngSequence: "PNG 連番", pngAnimation: "アニメ PNG", outputSize: "出力サイズ", width: "幅", height: "高さ", renderFps: "出力フレームレート", exportAnimation: "アニメを書き出す" },
   de: { importModel: "Modell laden", rotation: "Drehung", clockwise: "Im Uhrzeigersinn", counterclockwise: "Gegen Uhrzeigersinn", duration: "Volle Runde", seconds: "s", speed: "Drehgeschwindigkeit", degreesPerSecond: "Grad/s", exportMode: "Ausgabeformat", pngSequence: "PNG-Sequenz", pngAnimation: "Animiertes PNG", outputSize: "Ausgabegröße", width: "Breite", height: "Höhe", renderFps: "Ausgabebildrate", exportAnimation: "Animation exportieren" },
   ko: { importModel: "모델 가져오기", rotation: "회전", clockwise: "시계 방향", counterclockwise: "반시계 방향", duration: "한 바퀴 시간", seconds: "초", speed: "회전 속도", degreesPerSecond: "도/초", exportMode: "출력 형식", pngSequence: "PNG 시퀀스", pngAnimation: "애니메이션 PNG", outputSize: "출력 크기", width: "너비", height: "높이", renderFps: "출력 프레임 속도", exportAnimation: "애니메이션 내보내기" },
@@ -638,6 +695,33 @@ previewToggle.addEventListener("click", () => {
   previewToggle.textContent = isPreviewPlaying ? "Ⅱ" : "▶";
   previewToggle.setAttribute("aria-label", isPreviewPlaying ? "暂停预览" : "播放预览");
   previewToggle.title = isPreviewPlaying ? "暂停预览" : "播放预览";
+});
+
+lightingToggle.addEventListener("click", () => {
+  lightingPanel.hidden = !lightingPanel.hidden;
+  lightingToggle.setAttribute("aria-expanded", String(!lightingPanel.hidden));
+});
+
+exposureRange.addEventListener("input", () => {
+  renderSettings.exposure = Number(exposureRange.value);
+  applyRenderSettings();
+});
+
+lightAngleRange.addEventListener("input", () => {
+  renderSettings.keyAngle = Number(lightAngleRange.value);
+  applyRenderSettings();
+});
+
+lightingPresetButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    renderSettings.lightingMode = button.dataset.lightingMode;
+    lightingPresetButtons.forEach((item) => {
+      const active = item === button;
+      item.classList.toggle("active", active);
+      item.setAttribute("aria-pressed", String(active));
+    });
+    applyRenderSettings();
+  });
 });
 
 languageMenuButton.addEventListener("click", () => {

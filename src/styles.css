@@ -565,6 +565,104 @@ label {
   font-size: 13px;
 }
 
+.lightingControl {
+  position: relative;
+  width: 100%;
+}
+
+.lightingToggle {
+  display: inline-flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #1d1d1f;
+  border-radius: 0;
+  background: #ffffff;
+  color: #1d1d1f;
+  font-size: 13px;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.lightingToggle:hover,
+.lightingToggle[aria-expanded="true"] {
+  background: #1d1d1f;
+  color: #ffffff;
+}
+
+.lightingPanel {
+  position: absolute;
+  z-index: 10;
+  right: 0;
+  bottom: calc(100% + 6px);
+  display: grid;
+  width: 100%;
+  gap: 13px;
+  padding: 14px;
+  border: 1px solid #1d1d1f;
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
+}
+
+.lightingPanel[hidden] {
+  display: none;
+}
+
+.lightingPanel label,
+.lightingMode {
+  gap: 7px;
+  color: #424245;
+  font-size: 13px;
+  font-weight: 680;
+}
+
+.lightingPanel label > span,
+.lightingMode > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lightingPanel output {
+  color: #6e6e73;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.lightingPanel input[type="range"] {
+  width: 100%;
+  accent-color: #1d1d1f;
+}
+
+.lightingMode {
+  display: grid;
+}
+
+.lightingModeGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.lightingPreset {
+  min-height: 32px;
+  border: 1px solid #d2d2d7;
+  border-radius: 0;
+  background: #ffffff;
+  color: #424245;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.lightingPreset.active {
+  border-color: #1d1d1f;
+  background: #1d1d1f;
+  color: #ffffff;
+}
+
 .exportDock {
   display: grid;
   gap: 5px;
@@ -656,6 +754,10 @@ label {
   }
 
   .exportButton {
+    min-height: 26px;
+  }
+
+  .lightingToggle {
     min-height: 26px;
   }
 
