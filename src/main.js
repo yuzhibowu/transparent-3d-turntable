@@ -594,7 +594,7 @@ async function renderFrames({ width, height, fps, duration }) {
 }
 
 function safeBaseName(value) {
-  return String(value).replace(/[^a-z0-9._-]+/gi, "_").replace(/^_+|_+$/g, "") || "turntable";
+  return String(value).replace(/[^a-z0-9._-]+/gi, "_").replace(/^[-_.]+/g, "") || "turntable";
 }
 
 function downloadBlob(blob, filename) {
@@ -647,19 +647,27 @@ async function loadBrowserFfmpeg() {
 
   const [coreURL, wasmURL] = await ffmpegCoreUrls;
   const ffmpeg = new FFmpeg();
-  let latestLog = "";
+  const logLines = [];
   ffmpeg.on("log", ({ message }) => {
-    latestLog = message;
+    logLines.push(message);
+    if (logLines.length > 500) logLines.shift();
   });
   ffmpeg.on("progress", ({ progress }) => {
     if (Number.isFinite(progress)) setProgress(0.84 + Math.min(1, Math.max(0, progress)) * 0.15);
   });
   await ffmpeg.load({ coreURL, wasmURL });
-  return { ffmpeg, getLatestLog: () => latestLog };
+  return { ffmpeg, getLogs: () => logLines };
+}
+
+function meaningfulFfmpegError(logLines) {
+  const noisePattern = /^(ffmpeg version|  built with|  configuration:|  libav|libpostproc|Reading option|Splitting the commandline|Applying option|Successfully parsed|Parsing a group|Finished splitting|  Stream #|  Duration:|  Metadata:|    encoder|Input #|Output #|frame=|  Total:|Statistics:|video:|audio:|Setting |w:|auto-inserting|query_formats|Selected |Sync level|Changing video|filter context|Autoselected|profile |frame size|cur_dts|EOF on|No more output|Clipping frame|muxing overhead)/i;
+  const errorPattern = /^(Error|Failed|Unrecognized|Invalid|Unable|Cannot|Could not|Unknown|No such|Permission denied|Missing|Incompatible|Assertion|Conversion failed|Memory allocation|Out of memory)/i;
+  const meaningful = logLines.filter((line) => !/^Aborted\(\)\s*$/.test(line) && !noisePattern.test(line));
+  return meaningful.find((line) => errorPattern.test(line)) || meaningful[meaningful.length - 1] || "";
 }
 
 async function exportAnimatedFile({ mode, frames, fps, baseName }) {
-  const { ffmpeg, getLatestLog } = await loadBrowserFfmpeg();
+  const { ffmpeg, getLogs } = await loadBrowserFfmpeg();
   const frameNames = frames.map((_, index) => `frame_${String(index).padStart(5, "0")}.png`);
   let outputName;
   let mimeType;
@@ -698,7 +706,9 @@ async function exportAnimatedFile({ mode, frames, fps, baseName }) {
 
     exportStatus.textContent = "正在浏览器中编码，请保持页面开启";
     const exitCode = await ffmpeg.exec(args);
-    if (exitCode !== 0) throw new Error(getLatestLog() || `编码器退出，错误码 ${exitCode}`);
+    if (exitCode !== 0) {
+      throw new Error(meaningfulFfmpegError(getLogs()) || `编码器退出，错误码 ${exitCode}`);
+    }
     const output = await ffmpeg.readFile(outputName);
     const fileData = mode === "mov" ? markAppleProResVendor(output) : output;
     return { blob: new Blob([fileData], { type: mimeType }), filename: outputName };
