@@ -116,10 +116,10 @@ app.innerHTML = `
         <div class="fpsSection">
           <label>
             <span data-i18n="renderFps">输出帧率</span>
-            <div class="field"><input id="fpsInput" type="number" min="1" max="120" step="1" value="30" /><small>fps</small></div>
+            <div class="field"><input id="fpsInput" type="number" min="15" max="120" step="1" value="30" /><small>fps</small></div>
           </label>
           <div class="fpsPresetRow" aria-label="帧率快捷选项">
-            <button type="button" class="fpsPreset" data-fps="12">12</button>
+            <button type="button" class="fpsPreset" data-fps="15">15</button>
             <button type="button" class="fpsPreset" data-fps="24">24</button>
             <button type="button" class="fpsPreset" data-fps="36">36</button>
             <button type="button" class="fpsPreset" data-fps="60">60</button>
@@ -130,6 +130,7 @@ app.innerHTML = `
       <div class="exportDock">
         <div class="lightingControl">
           <button id="lightingToggle" class="lightingToggle" type="button" aria-expanded="false" data-i18n="lighting">灯光与画面</button>
+          <button id="wechatStickerButton" class="lightingToggle" type="button" data-i18n="wechatSticker" hidden>微信表情包</button>
           <div id="lightingPanel" class="lightingPanel" hidden>
             <label>
               <span><span data-i18n="exposure">曝光强度</span><output id="exposureValue">1.05</output></span>
@@ -214,6 +215,7 @@ const exportButton = document.querySelector("#exportButton");
 const exportStatus = document.querySelector("#exportStatus");
 const progressBar = document.querySelector("#progressBar");
 const lightingToggle = document.querySelector("#lightingToggle");
+const wechatStickerButton = document.querySelector("#wechatStickerButton");
 const lightingPanel = document.querySelector("#lightingPanel");
 const exposureRange = document.querySelector("#exposureRange");
 const exposureValue = document.querySelector("#exposureValue");
@@ -351,12 +353,12 @@ let isPreviewPlaying = true;
 applyRenderSettings();
 
 const translations = {
-  zh: { importModel: "导入模型", rotation: "旋转", clockwise: "顺时针", counterclockwise: "逆时针", duration: "整圈时长", seconds: "秒", speed: "旋转速度", degreesPerSecond: "度/秒", exportMode: "输出格式", pngSequence: "PNG 序列", pngAnimation: "PNG 动图", outputSize: "输出尺寸", width: "宽度", height: "高度", renderFps: "输出帧率", exportAnimation: "导出动画", lighting: "灯光与画面", exposure: "曝光强度", environmentIntensity: "环境光强度", keyLightIntensity: "主光强度", fillLightIntensity: "补光强度", shadowIntensity: "阴影强度", keyLightAngle: "主光角度", toneMapping: "色彩映射", lightingMode: "布光模式", threePoint: "三点布光", rembrandt: "伦勃朗布光", modelPosition: "模型位置", horizontalPosition: "水平位置", verticalPosition: "垂直位置" },
-  en: { importModel: "Import Model", rotation: "Rotation", clockwise: "Clockwise", counterclockwise: "Counterclockwise", duration: "Full Turn", seconds: "sec", speed: "Rotation Speed", degreesPerSecond: "deg/s", exportMode: "Output Format", pngSequence: "PNG Sequence", pngAnimation: "Animated PNG", outputSize: "Output Size", width: "Width", height: "Height", renderFps: "Output Frame Rate", exportAnimation: "Export Animation", lighting: "Lighting", exposure: "Exposure", environmentIntensity: "Environment", keyLightIntensity: "Key Light", fillLightIntensity: "Fill Light", shadowIntensity: "Shadow", keyLightAngle: "Key Light Angle", toneMapping: "Tone Mapping", lightingMode: "Lighting Mode", threePoint: "Three-point", rembrandt: "Rembrandt", modelPosition: "Model Position", horizontalPosition: "Horizontal", verticalPosition: "Vertical" },
-  fr: { importModel: "Importer", rotation: "Rotation", clockwise: "Horaire", counterclockwise: "Antihoraire", duration: "Tour complet", seconds: "s", speed: "Vitesse", degreesPerSecond: "deg/s", exportMode: "Format de sortie", pngSequence: "Séquence PNG", pngAnimation: "PNG animé", outputSize: "Dimensions", width: "Largeur", height: "Hauteur", renderFps: "Fréquence de sortie", exportAnimation: "Exporter l’animation", lighting: "Éclairage", exposure: "Exposition", environmentIntensity: "Ambiance", keyLightIntensity: "Lumière principale", fillLightIntensity: "Lumière d’appoint", shadowIntensity: "Ombres", keyLightAngle: "Angle principal", toneMapping: "Rendu des couleurs", lightingMode: "Mode d’éclairage", threePoint: "Trois points", rembrandt: "Rembrandt", modelPosition: "Position du modèle", horizontalPosition: "Horizontal", verticalPosition: "Vertical" },
-  ja: { importModel: "モデル読込", rotation: "回転", clockwise: "時計回り", counterclockwise: "反時計回り", duration: "一周時間", seconds: "秒", speed: "回転速度", degreesPerSecond: "度/秒", exportMode: "出力形式", pngSequence: "PNG 連番", pngAnimation: "アニメ PNG", outputSize: "出力サイズ", width: "幅", height: "高さ", renderFps: "出力フレームレート", exportAnimation: "アニメを書き出す" },
-  de: { importModel: "Modell laden", rotation: "Drehung", clockwise: "Im Uhrzeigersinn", counterclockwise: "Gegen Uhrzeigersinn", duration: "Volle Runde", seconds: "s", speed: "Drehgeschwindigkeit", degreesPerSecond: "Grad/s", exportMode: "Ausgabeformat", pngSequence: "PNG-Sequenz", pngAnimation: "Animiertes PNG", outputSize: "Ausgabegröße", width: "Breite", height: "Höhe", renderFps: "Ausgabebildrate", exportAnimation: "Animation exportieren" },
-  ko: { importModel: "모델 가져오기", rotation: "회전", clockwise: "시계 방향", counterclockwise: "반시계 방향", duration: "한 바퀴 시간", seconds: "초", speed: "회전 속도", degreesPerSecond: "도/초", exportMode: "출력 형식", pngSequence: "PNG 시퀀스", pngAnimation: "애니메이션 PNG", outputSize: "출력 크기", width: "너비", height: "높이", renderFps: "출력 프레임 속도", exportAnimation: "애니메이션 내보내기" },
+  zh: { importModel: "导入模型", rotation: "旋转", clockwise: "顺时针", counterclockwise: "逆时针", duration: "整圈时长", seconds: "秒", speed: "旋转速度", degreesPerSecond: "度/秒", exportMode: "输出格式", pngSequence: "PNG 序列", pngAnimation: "PNG 动图", outputSize: "输出尺寸", width: "宽度", height: "高度", renderFps: "输出帧率", exportAnimation: "导出动画", lighting: "灯光与画面", wechatSticker: "微信表情包", exposure: "曝光强度", environmentIntensity: "环境光强度", keyLightIntensity: "主光强度", fillLightIntensity: "补光强度", shadowIntensity: "阴影强度", keyLightAngle: "主光角度", toneMapping: "色彩映射", lightingMode: "布光模式", threePoint: "三点布光", rembrandt: "伦勃朗布光", modelPosition: "模型位置", horizontalPosition: "水平位置", verticalPosition: "垂直位置" },
+  en: { importModel: "Import Model", rotation: "Rotation", clockwise: "Clockwise", counterclockwise: "Counterclockwise", duration: "Full Turn", seconds: "sec", speed: "Rotation Speed", degreesPerSecond: "deg/s", exportMode: "Output Format", pngSequence: "PNG Sequence", pngAnimation: "Animated PNG", outputSize: "Output Size", width: "Width", height: "Height", renderFps: "Output Frame Rate", exportAnimation: "Export Animation", lighting: "Lighting", wechatSticker: "WeChat Sticker", exposure: "Exposure", environmentIntensity: "Environment", keyLightIntensity: "Key Light", fillLightIntensity: "Fill Light", shadowIntensity: "Shadow", keyLightAngle: "Key Light Angle", toneMapping: "Tone Mapping", lightingMode: "Lighting Mode", threePoint: "Three-point", rembrandt: "Rembrandt", modelPosition: "Model Position", horizontalPosition: "Horizontal", verticalPosition: "Vertical" },
+  fr: { importModel: "Importer", rotation: "Rotation", clockwise: "Horaire", counterclockwise: "Antihoraire", duration: "Tour complet", seconds: "s", speed: "Vitesse", degreesPerSecond: "deg/s", exportMode: "Format de sortie", pngSequence: "Séquence PNG", pngAnimation: "PNG animé", outputSize: "Dimensions", width: "Largeur", height: "Hauteur", renderFps: "Fréquence de sortie", exportAnimation: "Exporter l’animation", lighting: "Éclairage", wechatSticker: "Sticker WeChat", exposure: "Exposition", environmentIntensity: "Ambiance", keyLightIntensity: "Lumière principale", fillLightIntensity: "Lumière d’appoint", shadowIntensity: "Ombres", keyLightAngle: "Angle principal", toneMapping: "Rendu des couleurs", lightingMode: "Mode d’éclairage", threePoint: "Trois points", rembrandt: "Rembrandt", modelPosition: "Position du modèle", horizontalPosition: "Horizontal", verticalPosition: "Vertical" },
+  ja: { importModel: "モデル読込", rotation: "回転", clockwise: "時計回り", counterclockwise: "反時計回り", duration: "一周時間", seconds: "秒", speed: "回転速度", degreesPerSecond: "度/秒", exportMode: "出力形式", pngSequence: "PNG 連番", pngAnimation: "アニメ PNG", outputSize: "出力サイズ", width: "幅", height: "高さ", renderFps: "出力フレームレート", exportAnimation: "アニメを書き出す", wechatSticker: "微信スタンプ" },
+  de: { importModel: "Modell laden", rotation: "Drehung", clockwise: "Im Uhrzeigersinn", counterclockwise: "Gegen Uhrzeigersinn", duration: "Volle Runde", seconds: "s", speed: "Drehgeschwindigkeit", degreesPerSecond: "Grad/s", exportMode: "Ausgabeformat", pngSequence: "PNG-Sequenz", pngAnimation: "Animiertes PNG", outputSize: "Ausgabegröße", width: "Breite", height: "Höhe", renderFps: "Ausgabebildrate", exportAnimation: "Animation exportieren", wechatSticker: "WeChat-Sticker" },
+  ko: { importModel: "모델 가져오기", rotation: "회전", clockwise: "시계 방향", counterclockwise: "반시계 방향", duration: "한 바퀴 시간", seconds: "초", speed: "회전 속도", degreesPerSecond: "도/초", exportMode: "출력 형식", pngSequence: "PNG 시퀀스", pngAnimation: "애니메이션 PNG", outputSize: "출력 크기", width: "너비", height: "높이", renderFps: "출력 프레임 속도", exportAnimation: "애니메이션 내보내기", wechatSticker: "위챗 스티커" },
 };
 
 function setLanguage(language) {
@@ -727,7 +729,7 @@ async function exportTurntable() {
   const mode = selectedMode();
   const width = Math.max(64, Math.round(Number(widthInput.value) || 2048));
   const height = Math.max(64, Math.round(Number(heightInput.value) || 1536));
-  const fps = Math.max(1, Math.min(120, Math.round(Number(fpsInput.value) || 30)));
+  const fps = Math.max(15, Math.min(120, Math.round(Number(fpsInput.value) || 30)));
   const duration = Math.max(0.2, Number(durationInput.value) || 4);
 
   try {
@@ -788,6 +790,25 @@ fpsPresetButtons.forEach((button) => {
 
 fpsInput.addEventListener("input", () => {
   fpsPresetButtons.forEach((button) => button.classList.remove("active"));
+});
+
+const modeRadios = document.querySelectorAll('input[name="mode"]');
+function syncWechatStickerButton() {
+  wechatStickerButton.hidden = selectedMode() !== "gif";
+}
+modeRadios.forEach((radio) => radio.addEventListener("change", syncWechatStickerButton));
+syncWechatStickerButton();
+
+wechatStickerButton.addEventListener("click", () => {
+  widthInput.value = "270";
+  heightInput.value = "270";
+  fpsInput.value = "15";
+  widthInput.dispatchEvent(new Event("input", { bubbles: true }));
+  heightInput.dispatchEvent(new Event("input", { bubbles: true }));
+  fpsInput.dispatchEvent(new Event("input", { bubbles: true }));
+  fpsPresetButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.fps === "15");
+  });
 });
 
 resetViewButton.addEventListener("click", () => {

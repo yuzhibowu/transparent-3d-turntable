@@ -576,13 +576,14 @@ label {
 
 .lightingControl {
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
   width: 100%;
 }
 
 .lightingToggle {
   display: inline-flex;
-  width: calc((100% - 8px) / 2);
+  width: 100%;
   min-height: 38px;
   align-items: center;
   justify-content: center;
@@ -595,6 +596,10 @@ label {
   cursor: pointer;
 }
 
+.lightingToggle[hidden] {
+  display: none;
+}
+
 .lightingToggle:hover,
 .lightingToggle[aria-expanded="true"] {
   background: #1d1d1f;
@@ -604,6 +609,7 @@ label {
 .lightingPanel {
   display: grid;
   width: 100%;
+  grid-column: 1 / -1;
   gap: 13px;
   padding: 14px;
   border: 1px solid #1d1d1f;
