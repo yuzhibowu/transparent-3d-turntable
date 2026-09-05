@@ -2,6 +2,10 @@
 
 Browser-based USDZ, OBJ, and GLB turntable renderer with transparent MOV, PNG sequence, GIF, and animated PNG exports.
 
+## Reusable UI standard
+
+See [饼饼SHOW 网页工具 UI 范式](UI范式.md) for the reusable layout, colors, typography, borderless slider rules, responsive behavior, and a ready-to-use prompt for future tools.
+
 ## Local development
 
 FFmpeg must be installed and available on `PATH`.

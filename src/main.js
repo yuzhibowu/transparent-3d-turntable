@@ -346,6 +346,7 @@ function applyRenderSettings() {
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", String(active));
   });
+  updateSliderTracks();
 }
 const rembrandtDefaults = Object.freeze({ ...lightingDefaults,
   environmentIntensity: 0.21, keyLightIntensity: 1.02, fillLightIntensity: 0.07,
@@ -353,6 +354,7 @@ const rembrandtDefaults = Object.freeze({ ...lightingDefaults,
 });
 
 function applyModelOffset() {
+  updateSliderTracks();
   if (!modelRoot || !modelFrame) return;
   modelRoot.position.set(
     modelOffset.x / 200 * modelFrame.diameter * 0.3,
@@ -439,6 +441,7 @@ function syncFromDuration() {
   const speed = 360 / duration;
   speedInput.value = speed.toFixed(speed >= 100 ? 0 : 1);
   speedRange.value = String(Math.min(720, Math.max(15, speed)));
+  updateSliderTracks();
 }
 
 function syncFromSpeed() {
@@ -446,6 +449,18 @@ function syncFromSpeed() {
   const duration = 360 / speed;
   durationInput.value = duration.toFixed(duration >= 10 ? 1 : 2);
   speedRange.value = String(Math.min(720, Math.max(15, speed)));
+  updateSliderTracks();
+}
+
+function updateSliderTracks() {
+  document.querySelectorAll('input[type="range"]').forEach((input) => {
+    const min = Number(input.min || 0);
+    const max = Number(input.max || 100);
+    const fraction = max > min ? (Number(input.value) - min) / (max - min) : 0;
+    // The thumb center travels within the track, inset by its 8px radius.
+    const progress = Math.min(1, Math.max(0, fraction));
+    input.style.setProperty('--range-fill', `calc(${progress * 100}% + ${8 - progress * 16}px)`);
+  });
 }
 
 function measureObjectForTurntable(object, content) {

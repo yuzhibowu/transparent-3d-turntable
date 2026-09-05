@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 // Execute the actual application lighting path against real Three.js scene objects.
 const source = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
-const context = { THREE, renderer: {}, scene: new THREE.Scene(), modelRoot: new THREE.Group(),
+const context = { THREE, updateSliderTracks() {}, renderer: {}, scene: new THREE.Scene(), modelRoot: new THREE.Group(),
   modelFrame: { diameter: 200, height: 100 }, hemisphereLight: new THREE.AmbientLight(),
   keyLight: new THREE.DirectionalLight(), fillLight: new THREE.DirectionalLight(),
   toneMappingPresetButtons: [], lightingPresetButtons: [] };
