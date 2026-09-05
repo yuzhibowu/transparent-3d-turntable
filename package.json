@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite build && node server.js",
     "build": "vite build",
+    "test": "node tests/lighting.test.mjs",
     "preview": "node server.js --production"
   },
   "dependencies": {

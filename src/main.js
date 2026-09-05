@@ -1,4 +1,5 @@
 import "./styles.css";
+import { installModelShadows, normalizedModelContent } from "./model-shadows.js";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -133,40 +134,44 @@ app.innerHTML = `
           <button id="wechatStickerButton" class="lightingToggle" type="button" data-i18n="wechatSticker" hidden>微信表情包</button>
           <div id="lightingPanel" class="lightingPanel" hidden>
             <label>
-              <span><span data-i18n="exposure">曝光强度</span><output id="exposureValue">1.05</output></span>
-              <input id="exposureRange" type="range" min="0.25" max="3" step="0.05" value="1.05" />
+              <span><span data-i18n="exposure">曝光强度</span><output id="exposureValue">1.00</output></span>
+              <input id="exposureRange" type="range" min="0" max="4" step="0.01" value="1" />
             </label>
             <label>
-              <span><span data-i18n="environmentIntensity">环境光强度</span><output id="environmentValue">1.40</output></span>
-              <input id="environmentRange" type="range" min="0" max="4" step="0.05" value="1.4" />
+              <span><span data-i18n="environmentIntensity">环境光强度</span><output id="environmentValue">0.42</output></span>
+              <input id="environmentRange" type="range" min="0" max="3" step="0.01" value="0.42" />
             </label>
             <label>
-              <span><span data-i18n="keyLightIntensity">主光强度</span><output id="keyLightValue">3.20</output></span>
-              <input id="keyLightRange" type="range" min="0" max="8" step="0.1" value="3.2" />
+              <span><span data-i18n="keyLightIntensity">主光强度</span><output id="keyLightValue">0.68</output></span>
+              <input id="keyLightRange" type="range" min="0" max="3" step="0.01" value="0.68" />
             </label>
             <label>
-              <span><span data-i18n="fillLightIntensity">补光强度</span><output id="fillLightValue">1.60</output></span>
-              <input id="fillLightRange" type="range" min="0" max="6" step="0.1" value="1.6" />
+              <span><span data-i18n="fillLightIntensity">补光强度</span><output id="fillLightValue">0.26</output></span>
+              <input id="fillLightRange" type="range" min="0" max="3" step="0.01" value="0.26" />
             </label>
             <label>
-              <span><span data-i18n="shadowIntensity">阴影强度</span><output id="shadowValue">0.55</output></span>
-              <input id="shadowRange" type="range" min="0" max="1" step="0.05" value="0.55" />
+              <span><span data-i18n="shadowIntensity">阴影强度</span><output id="shadowValue">0.00</output></span>
+              <input id="shadowRange" type="range" min="0" max="1" step="0.01" value="0" />
             </label>
             <label>
-              <span><span data-i18n="keyLightAngle">主光角度</span><output id="lightAngleValue">45°</output></span>
-              <input id="lightAngleRange" type="range" min="-180" max="180" step="1" value="45" />
+              <span><span data-i18n="keyLightAngle">主光角度 Y</span><output id="lightAngleValue">40°</output></span>
+              <input id="lightAngleRange" type="range" min="-180" max="180" step="1" value="40" />
+            </label>
+            <label>
+              <span><span data-i18n="keyLightAngleX">主光角度 X</span><output id="lightAngleXValue">-35°</output></span>
+              <input id="lightAngleXRange" type="range" min="-180" max="180" step="1" value="-35" />
             </label>
             <div class="toneMappingControls">
               <span data-i18n="toneMapping">色彩映射</span>
               <div class="lightingModeGrid" role="radiogroup" aria-label="色彩映射">
-                <button class="toneMappingPreset active" type="button" data-tone-mapping="linear" aria-pressed="true">Linear</button>
-                <button class="toneMappingPreset" type="button" data-tone-mapping="aces" aria-pressed="false">ACES</button>
+                <button class="toneMappingPreset active" type="button" data-tone-mapping="aces" aria-pressed="true">ACES</button>
+                <button class="toneMappingPreset" type="button" data-tone-mapping="linear" aria-pressed="false">Linear</button>
               </div>
             </div>
             <div class="lightingMode">
               <span data-i18n="lightingMode">布光模式</span>
               <div class="lightingModeGrid" role="radiogroup" aria-label="布光模式">
-                <button class="lightingPreset active" type="button" data-lighting-mode="threePoint" aria-pressed="true" data-i18n="threePoint">三点布光</button>
+                <button class="lightingPreset active" type="button" data-lighting-mode="threePoint" aria-pressed="true" data-i18n="threePoint">中性布光</button>
                 <button class="lightingPreset" type="button" data-lighting-mode="rembrandt" aria-pressed="false" data-i18n="rembrandt">伦勃朗布光</button>
               </div>
             </div>
@@ -228,6 +233,8 @@ const fillLightValue = document.querySelector("#fillLightValue");
 const shadowRange = document.querySelector("#shadowRange");
 const shadowValue = document.querySelector("#shadowValue");
 const lightAngleRange = document.querySelector("#lightAngleRange");
+const lightAngleXRange = document.querySelector("#lightAngleXRange");
+const lightAngleXValue = document.querySelector("#lightAngleXValue");
 const lightAngleValue = document.querySelector("#lightAngleValue");
 const lightingPresetButtons = document.querySelectorAll(".lightingPreset");
 const toneMappingPresetButtons = document.querySelectorAll(".toneMappingPreset");
@@ -251,10 +258,10 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setClearColor(0x000000, 0);
 renderer.setClearAlpha(0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.LinearToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 
 const pmremGenerator = new THREE.PMREMGenerator(renderer);
 const studioEnvironment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -264,72 +271,86 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.autoRotate = false;
 
-const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x667085, 1.4);
-const keyLight = new THREE.DirectionalLight(0xffffff, 3.2);
-const fillLight = new THREE.DirectionalLight(0x9fb8ff, 1.6);
-const rimLight = new THREE.DirectionalLight(0xfff2dc, 1.2);
+const hemisphereLight = new THREE.AmbientLight(0xffffff, 0.42);
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.68);
+const fillLight = new THREE.DirectionalLight(0xffffff, 0.26);
 keyLight.castShadow = true;
-keyLight.shadow.mapSize.set(1024, 1024);
+keyLight.shadow.mapSize.set(2048, 2048);
 keyLight.shadow.camera.near = 0.1;
 keyLight.shadow.camera.far = 30;
-scene.add(hemisphereLight, keyLight, fillLight, rimLight);
+scene.add(hemisphereLight, keyLight, fillLight, keyLight.target, fillLight.target);
 scene.environment = studioEnvironment;
 
 // Preview and export both render this same scene, so these values travel with every frame.
-const renderSettings = {
-  exposure: 1.05,
-  environmentIntensity: 1.4,
-  keyLightIntensity: 3.2,
-  fillLightIntensity: 1.6,
-  shadowIntensity: 0.55,
-  keyAngle: 45,
-  toneMapping: "linear",
-  lightingMode: "threePoint",
-};
+// Defaults and X/Y Euler convention follow C号 ModelLightingDefaults.
+const lightingDefaults = Object.freeze({
+  exposure: 1, environmentIntensity: 0.42, keyLightIntensity: 0.68,
+  fillLightIntensity: 0.26, shadowIntensity: 0, keyAngleX: -35,
+  keyAngle: 40, toneMapping: "aces",
+});
+const renderSettings = { ...lightingDefaults };
 const modelOffset = { x: 0, y: 0 };
 
-function positionLight(light, angle, height, radius) {
-  const radians = THREE.MathUtils.degToRad(angle);
-  light.position.set(Math.sin(radians) * radius, height, Math.cos(radians) * radius);
+function positionLight(light, xDegrees, yDegrees, center, radius) {
+  light.target.position.copy(center);
+  light.position.set(0, 0, radius).applyEuler(new THREE.Euler(
+    THREE.MathUtils.degToRad(xDegrees), THREE.MathUtils.degToRad(yDegrees), 0, "XYZ",
+  )).add(center);
 }
 
 function applyRenderSettings() {
   renderer.toneMapping = renderSettings.toneMapping === "aces"
-    ? THREE.ACESFilmicToneMapping
-    : THREE.LinearToneMapping;
+    ? THREE.ACESFilmicToneMapping : THREE.LinearToneMapping;
   renderer.toneMappingExposure = renderSettings.exposure;
+  // Apply environment intensity once; material multipliers retain their authored values.
   scene.environmentIntensity = renderSettings.environmentIntensity;
-  const isRembrandt = renderSettings.lightingMode === "rembrandt";
-  const keyAngle = renderSettings.keyAngle;
-
-  hemisphereLight.intensity = renderSettings.environmentIntensity * (isRembrandt ? 0.5 : 1);
-  keyLight.intensity = renderSettings.keyLightIntensity * (isRembrandt ? 1.5 : 1);
-  fillLight.intensity = renderSettings.fillLightIntensity * (isRembrandt ? 0.28 : 1);
-  rimLight.intensity = isRembrandt ? 1.8 : 1.2;
+  hemisphereLight.intensity = renderSettings.environmentIntensity;
+  keyLight.intensity = renderSettings.keyLightIntensity;
+  fillLight.intensity = renderSettings.fillLightIntensity;
+  keyLight.castShadow = renderSettings.shadowIntensity > 0.001;
   keyLight.shadow.intensity = renderSettings.shadowIntensity;
 
-  positionLight(keyLight, keyAngle, isRembrandt ? 4.8 : 4, 5);
-  positionLight(fillLight, keyAngle + (isRembrandt ? 118 : 165), isRembrandt ? 2.2 : 2, 4.5);
-  positionLight(rimLight, keyAngle + 180, isRembrandt ? 4.2 : 3.5, 5);
+  const center = modelRoot ? modelRoot.position : new THREE.Vector3();
+  const extent = modelFrame ? Math.hypot(modelFrame.diameter, modelFrame.height) / 2 : 1;
+  const radius = Math.max(extent * 1.1, 0.001);
+  positionLight(keyLight, renderSettings.keyAngleX, renderSettings.keyAngle, center, radius * 3);
+  positionLight(fillLight, THREE.MathUtils.radToDeg(0.35), THREE.MathUtils.radToDeg(-0.9), center, radius * 3);
+  const shadowCamera = keyLight.shadow.camera;
+  Object.assign(shadowCamera, { left: -radius, right: radius, top: radius, bottom: -radius,
+    near: radius, far: radius * 5 });
+  shadowCamera.updateProjectionMatrix();
+  keyLight.shadow.normalBias = radius * 0.002;
+  keyLight.shadow.bias = -0.0001;
 
-  if (modelRoot) {
-    modelRoot.traverse((child) => {
-      if (!child.isMesh || !child.material) return;
-      const materials = Array.isArray(child.material) ? child.material : [child.material];
-      materials.forEach((material) => {
-        if ("envMapIntensity" in material) material.envMapIntensity = renderSettings.environmentIntensity;
-        material.needsUpdate = true;
-      });
-    });
-  }
-
-  exposureValue.value = renderSettings.exposure.toFixed(2);
-  environmentValue.value = renderSettings.environmentIntensity.toFixed(2);
-  keyLightValue.value = renderSettings.keyLightIntensity.toFixed(2);
-  fillLightValue.value = renderSettings.fillLightIntensity.toFixed(2);
-  shadowValue.value = renderSettings.shadowIntensity.toFixed(2);
-  lightAngleValue.value = `${renderSettings.keyAngle}°`;
+  const bindings = [
+    [exposureRange, exposureValue, "exposure"],
+    [environmentRange, environmentValue, "environmentIntensity"],
+    [keyLightRange, keyLightValue, "keyLightIntensity"],
+    [fillLightRange, fillLightValue, "fillLightIntensity"],
+    [shadowRange, shadowValue, "shadowIntensity"],
+    [lightAngleRange, lightAngleValue, "keyAngle"],
+    [lightAngleXRange, lightAngleXValue, "keyAngleX"],
+  ];
+  bindings.forEach(([input, output, key]) => {
+    input.value = renderSettings[key];
+    output.value = key.startsWith("keyAngle") ? `${renderSettings[key]}°` : renderSettings[key].toFixed(2);
+  });
+  toneMappingPresetButtons.forEach((button) => {
+    const active = button.dataset.toneMapping === renderSettings.toneMapping;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  lightingPresetButtons.forEach((button) => {
+    const preset = button.dataset.lightingMode === "threePoint" ? lightingDefaults : rembrandtDefaults;
+    const active = Object.keys(preset).every((key) => renderSettings[key] === preset[key]);
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
 }
+const rembrandtDefaults = Object.freeze({ ...lightingDefaults,
+  environmentIntensity: 0.21, keyLightIntensity: 1.02, fillLightIntensity: 0.07,
+  shadowIntensity: 0.55, keyAngleX: -45, keyAngle: 45,
+});
 
 function applyModelOffset() {
   if (!modelRoot || !modelFrame) return;
@@ -353,9 +374,9 @@ let isPreviewPlaying = true;
 applyRenderSettings();
 
 const translations = {
-  zh: { importModel: "导入模型", rotation: "旋转", clockwise: "顺时针", counterclockwise: "逆时针", duration: "整圈时长", seconds: "秒", speed: "旋转速度", degreesPerSecond: "度/秒", exportMode: "输出格式", pngSequence: "PNG 序列", pngAnimation: "PNG 动图", outputSize: "输出尺寸", width: "宽度", height: "高度", renderFps: "输出帧率", exportAnimation: "导出动画", lighting: "灯光与画面", wechatSticker: "微信表情包", exposure: "曝光强度", environmentIntensity: "环境光强度", keyLightIntensity: "主光强度", fillLightIntensity: "补光强度", shadowIntensity: "阴影强度", keyLightAngle: "主光角度", toneMapping: "色彩映射", lightingMode: "布光模式", threePoint: "三点布光", rembrandt: "伦勃朗布光", modelPosition: "模型位置", horizontalPosition: "水平位置", verticalPosition: "垂直位置" },
-  en: { importModel: "Import Model", rotation: "Rotation", clockwise: "Clockwise", counterclockwise: "Counterclockwise", duration: "Full Turn", seconds: "sec", speed: "Rotation Speed", degreesPerSecond: "deg/s", exportMode: "Output Format", pngSequence: "PNG Sequence", pngAnimation: "Animated PNG", outputSize: "Output Size", width: "Width", height: "Height", renderFps: "Output Frame Rate", exportAnimation: "Export Animation", lighting: "Lighting", wechatSticker: "WeChat Sticker", exposure: "Exposure", environmentIntensity: "Environment", keyLightIntensity: "Key Light", fillLightIntensity: "Fill Light", shadowIntensity: "Shadow", keyLightAngle: "Key Light Angle", toneMapping: "Tone Mapping", lightingMode: "Lighting Mode", threePoint: "Three-point", rembrandt: "Rembrandt", modelPosition: "Model Position", horizontalPosition: "Horizontal", verticalPosition: "Vertical" },
-  fr: { importModel: "Importer", rotation: "Rotation", clockwise: "Horaire", counterclockwise: "Antihoraire", duration: "Tour complet", seconds: "s", speed: "Vitesse", degreesPerSecond: "deg/s", exportMode: "Format de sortie", pngSequence: "Séquence PNG", pngAnimation: "PNG animé", outputSize: "Dimensions", width: "Largeur", height: "Hauteur", renderFps: "Fréquence de sortie", exportAnimation: "Exporter l’animation", lighting: "Éclairage", wechatSticker: "Sticker WeChat", exposure: "Exposition", environmentIntensity: "Ambiance", keyLightIntensity: "Lumière principale", fillLightIntensity: "Lumière d’appoint", shadowIntensity: "Ombres", keyLightAngle: "Angle principal", toneMapping: "Rendu des couleurs", lightingMode: "Mode d’éclairage", threePoint: "Trois points", rembrandt: "Rembrandt", modelPosition: "Position du modèle", horizontalPosition: "Horizontal", verticalPosition: "Vertical" },
+  zh: { importModel: "导入模型", rotation: "旋转", clockwise: "顺时针", counterclockwise: "逆时针", duration: "整圈时长", seconds: "秒", speed: "旋转速度", degreesPerSecond: "度/秒", exportMode: "输出格式", pngSequence: "PNG 序列", pngAnimation: "PNG 动图", outputSize: "输出尺寸", width: "宽度", height: "高度", renderFps: "输出帧率", exportAnimation: "导出动画", lighting: "灯光与画面", wechatSticker: "微信表情包", exposure: "曝光强度", environmentIntensity: "环境光强度", keyLightIntensity: "主光强度", fillLightIntensity: "补光强度", shadowIntensity: "阴影强度", keyLightAngle: "主光角度 Y", keyLightAngleX: "主光角度 X", toneMapping: "色彩映射", lightingMode: "布光模式", threePoint: "中性布光", rembrandt: "伦勃朗布光", modelPosition: "模型位置", horizontalPosition: "水平位置", verticalPosition: "垂直位置" },
+  en: { importModel: "Import Model", rotation: "Rotation", clockwise: "Clockwise", counterclockwise: "Counterclockwise", duration: "Full Turn", seconds: "sec", speed: "Rotation Speed", degreesPerSecond: "deg/s", exportMode: "Output Format", pngSequence: "PNG Sequence", pngAnimation: "Animated PNG", outputSize: "Output Size", width: "Width", height: "Height", renderFps: "Output Frame Rate", exportAnimation: "Export Animation", lighting: "Lighting", wechatSticker: "WeChat Sticker", exposure: "Exposure", environmentIntensity: "Environment", keyLightIntensity: "Key Light", fillLightIntensity: "Fill Light", shadowIntensity: "Shadow", keyLightAngle: "Key Light Angle Y", keyLightAngleX: "Key Light Angle X", toneMapping: "Tone Mapping", lightingMode: "Lighting Mode", threePoint: "Neutral", rembrandt: "Rembrandt", modelPosition: "Model Position", horizontalPosition: "Horizontal", verticalPosition: "Vertical" },
+  fr: { importModel: "Importer", rotation: "Rotation", clockwise: "Horaire", counterclockwise: "Antihoraire", duration: "Tour complet", seconds: "s", speed: "Vitesse", degreesPerSecond: "deg/s", exportMode: "Format de sortie", pngSequence: "Séquence PNG", pngAnimation: "PNG animé", outputSize: "Dimensions", width: "Largeur", height: "Hauteur", renderFps: "Fréquence de sortie", exportAnimation: "Exporter l’animation", lighting: "Éclairage", wechatSticker: "Sticker WeChat", exposure: "Exposition", environmentIntensity: "Ambiance", keyLightIntensity: "Lumière principale", fillLightIntensity: "Lumière d’appoint", shadowIntensity: "Ombres", keyLightAngle: "Angle principal Y", keyLightAngleX: "Angle principal X", toneMapping: "Rendu des couleurs", lightingMode: "Mode d’éclairage", threePoint: "Neutre", rembrandt: "Rembrandt", modelPosition: "Position du modèle", horizontalPosition: "Horizontal", verticalPosition: "Vertical" },
   ja: { importModel: "モデル読込", rotation: "回転", clockwise: "時計回り", counterclockwise: "反時計回り", duration: "一周時間", seconds: "秒", speed: "回転速度", degreesPerSecond: "度/秒", exportMode: "出力形式", pngSequence: "PNG 連番", pngAnimation: "アニメ PNG", outputSize: "出力サイズ", width: "幅", height: "高さ", renderFps: "出力フレームレート", exportAnimation: "アニメを書き出す", wechatSticker: "微信スタンプ" },
   de: { importModel: "Modell laden", rotation: "Drehung", clockwise: "Im Uhrzeigersinn", counterclockwise: "Gegen Uhrzeigersinn", duration: "Volle Runde", seconds: "s", speed: "Drehgeschwindigkeit", degreesPerSecond: "Grad/s", exportMode: "Ausgabeformat", pngSequence: "PNG-Sequenz", pngAnimation: "Animiertes PNG", outputSize: "Ausgabegröße", width: "Breite", height: "Höhe", renderFps: "Ausgabebildrate", exportAnimation: "Animation exportieren", wechatSticker: "WeChat-Sticker" },
   ko: { importModel: "모델 가져오기", rotation: "회전", clockwise: "시계 방향", counterclockwise: "반시계 방향", duration: "한 바퀴 시간", seconds: "초", speed: "회전 속도", degreesPerSecond: "도/초", exportMode: "출력 형식", pngSequence: "PNG 시퀀스", pngAnimation: "애니메이션 PNG", outputSize: "출력 크기", width: "너비", height: "높이", renderFps: "출력 프레임 속도", exportAnimation: "애니메이션 내보내기", wechatSticker: "위챗 스티커" },
@@ -486,6 +507,7 @@ function normalizeMaterials(object) {
       const materials = Array.isArray(child.material) ? child.material : [child.material];
       materials.forEach((material) => {
         material.side = THREE.DoubleSide;
+        installModelShadows(material);
         material.needsUpdate = true;
       });
     }
@@ -511,16 +533,17 @@ async function loadModel(file) {
 
     if (modelRoot) scene.remove(modelRoot);
     modelRoot = new THREE.Group();
-    modelRoot.add(loaded);
+    const content = normalizedModelContent(loaded);
+    modelRoot.add(content);
     normalizeMaterials(modelRoot);
     scene.add(modelRoot);
-    applyRenderSettings();
-    modelFrame = measureObjectForTurntable(modelRoot, loaded);
+    modelFrame = measureObjectForTurntable(modelRoot, content);
     modelOffset.x = 0;
     modelOffset.y = 0;
     positionXRange.value = "0";
     positionYRange.value = "0";
     applyModelOffset();
+    applyRenderSettings();
     fitCameraToFrame();
     initialView = {
       position: camera.position.clone(),
@@ -870,6 +893,11 @@ lightAngleRange.addEventListener("input", () => {
   applyRenderSettings();
 });
 
+lightAngleXRange.addEventListener("input", () => {
+  renderSettings.keyAngleX = Number(lightAngleXRange.value);
+  applyRenderSettings();
+});
+
 toneMappingPresetButtons.forEach((button) => {
   button.addEventListener("click", () => {
     renderSettings.toneMapping = button.dataset.toneMapping;
@@ -885,16 +913,18 @@ toneMappingPresetButtons.forEach((button) => {
 positionXRange.addEventListener("input", () => {
   modelOffset.x = Number(positionXRange.value);
   applyModelOffset();
+  applyRenderSettings();
 });
 
 positionYRange.addEventListener("input", () => {
   modelOffset.y = Number(positionYRange.value);
   applyModelOffset();
+  applyRenderSettings();
 });
 
 lightingPresetButtons.forEach((button) => {
   button.addEventListener("click", () => {
-    renderSettings.lightingMode = button.dataset.lightingMode;
+    Object.assign(renderSettings, button.dataset.lightingMode === "threePoint" ? lightingDefaults : rembrandtDefaults);
     lightingPresetButtons.forEach((item) => {
       const active = item === button;
       item.classList.toggle("active", active);
@@ -964,3 +994,6 @@ window.addEventListener("resize", resizePreview);
 syncFromDuration();
 resizePreview();
 requestAnimationFrame(frame);
+
+// Shared entry points for browser rendering regression tests.
+export { loadModel, render, renderer, scene, camera, controls, renderSettings, applyRenderSettings, keyLight, renderFrames };
